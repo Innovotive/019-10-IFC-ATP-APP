@@ -1,0 +1,29 @@
+from RPiMCP23S17 import MCP23S17
+import spidev
+import time
+
+# SPI setup
+spi = spidev.SpiDev()
+spi.open(0, 0)              # bus 0, CE0
+spi.max_speed_hz = 10000000
+
+# MCP23S17 address = 0
+mcp = MCP23S17(spi, 0)
+
+# ✅ Set GPA0 (pin 0) as INPUT
+mcp.set_direction(0, 1)   # 1 = input
+
+# ✅ Enable pull-up (optional but recommended)
+mcp.set_pullup(0, 1)
+
+print("Reading GPA0 (A0)... Ctrl+C to stop")
+
+try:
+    while True:
+        val = mcp.get_value(0)   # read GPA0
+        print("GPA0:", val)
+        time.sleep(0.2)
+
+except KeyboardInterrupt:
+    print("\nStopped")
+

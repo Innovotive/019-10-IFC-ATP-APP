@@ -1,0 +1,1 @@
+savedcmd_/home/raspberry/ATP/CAN/socketcan_kvaser_drivers/kernel/drivers/net/can/usb/kvaser_usb/modules.order := {   echo /home/raspberry/ATP/CAN/socketcan_kvaser_drivers/kernel/drivers/net/can/usb/kvaser_usb/kvaser_usb.o; :; } > /home/raspberry/ATP/CAN/socketcan_kvaser_drivers/kernel/drivers/net/can/usb/kvaser_usb/modules.order

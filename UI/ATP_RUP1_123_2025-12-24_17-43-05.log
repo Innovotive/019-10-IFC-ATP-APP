@@ -1,0 +1,19 @@
+[17:43:05] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[17:43:05] === ATP START — RUP1 ID: 123 ===
+[17:43:05] [UI] Quick Test START
+[17:43:05] [HW] relay_on()
+[17:43:06] [GATE 1] REAL (RUP1)
+[17:43:07] [GATE 1] RUP1 (REAL) → PASS
+[17:43:07] [GATE 1] RUP2 (SIM) → PASS
+[17:43:07] [GATE 1] RUP3 (SIM) → PASS
+[17:43:07] [GATE 1] RUP4 (SIM) → PASS
+[17:43:07] [GATE 2] REAL (RUP1)
+[17:43:12] [GATE 2] RUP1 (REAL) → FAIL
+[17:43:12] [GATE 2] RUP2 (SIM) → PASS
+[17:43:12] [GATE 2] RUP3 (SIM) → PASS
+[17:43:12] [GATE 2] RUP4 (SIM) → PASS
+[17:43:12] [UI] Quick Test COMPLETE
+[17:43:16] [HW] Shutdown: Window closed
+[17:43:16] [HW] END_ATP sent
+[17:43:16] [HW] relay_off()
+[17:43:16] === ATP TERMINATED BY CLOSE ===

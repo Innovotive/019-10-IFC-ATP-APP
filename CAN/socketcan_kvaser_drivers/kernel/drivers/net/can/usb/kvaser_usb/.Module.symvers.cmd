@@ -1,0 +1,1 @@
+savedcmd_/home/raspberry/ATP/CAN/socketcan_kvaser_drivers/kernel/drivers/net/can/usb/kvaser_usb/Module.symvers :=  scripts/mod/modpost -M -m -a      -o /home/raspberry/ATP/CAN/socketcan_kvaser_drivers/kernel/drivers/net/can/usb/kvaser_usb/Module.symvers -n -T /home/raspberry/ATP/CAN/socketcan_kvaser_drivers/kernel/drivers/net/can/usb/kvaser_usb/modules.order -i Module.symvers -e 

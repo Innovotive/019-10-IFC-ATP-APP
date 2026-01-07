@@ -1,0 +1,2 @@
+﻿  USBPDConsole.cpp
+C:\Users\NikolaM\Documents\PD V4.4.5\new_release\Version_1_0_1014\USBPDConsole\USBPDConsole.h(11,10): fatal error C1083: Cannot open include file: 'FTD2XX.H': No such file or directory

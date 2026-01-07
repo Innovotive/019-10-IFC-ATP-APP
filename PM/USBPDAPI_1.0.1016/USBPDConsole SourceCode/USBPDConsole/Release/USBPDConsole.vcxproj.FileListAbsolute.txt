@@ -1,0 +1,3 @@
+C:\Users\NikolaM\Documents\new_release_5_19_22\Version_1_0_1010\USBPDConsole\Release\USBPDConsole.exe
+C:\Users\NikolaM\Documents\Version_1_0_1011\USBPDConsole\Release\USBPDConsole.exe
+\\holly2\Software Dev\USB Power Delivery Tester\USBPDConsole (application)\SourceCodeArchive\Version_1_0_1011\USBPDConsole\Release\USBPDConsole.exe

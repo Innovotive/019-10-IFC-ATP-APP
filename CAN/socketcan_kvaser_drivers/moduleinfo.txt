@@ -1,0 +1,3 @@
+module=socketcan_kvaser_drivers
+version=1_21_107
+git_id=780d13144c20

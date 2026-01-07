@@ -1,0 +1,57 @@
+[17:30:26] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[17:30:26] === ATP START — RUP1 ID: 123 ===
+[17:30:26] [UI] Quick Test START
+[17:30:26] [HW] relay_on()
+[17:30:26] [GATE 1] REAL (RUP1)
+[17:30:27] [GATE 1] RUP1 (REAL) → PASS
+[17:30:27] [GATE 1] RUP2 (SIM) → PASS
+[17:30:27] [GATE 1] RUP3 (SIM) → PASS
+[17:30:27] [GATE 1] RUP4 (SIM) → PASS
+[17:30:27] [GATE 2] REAL (RUP1)
+[17:30:30] [GATE 2] RUP1 (REAL) → PASS
+[17:30:30] [GATE 2] RUP2 (SIM) → PASS
+[17:30:30] [GATE 2] RUP3 (SIM) → PASS
+[17:30:30] [GATE 2] RUP4 (SIM) → PASS
+[17:30:30] [UI] Quick Test COMPLETE
+[17:30:32] [UI] Full ATP START
+[17:30:34] 
+========== GATE 4 ==========
+[17:30:34] ℹ️  TERMINATION_OFF disabled
+[17:30:35] 📥 RX | DATA=['0x81']
+[17:30:35] 📥 RX | DATA=['0x83']
+[17:30:35] ✅ TERMINATION_ON ACK received
+[17:30:35] [GATE4] ADC ON sample 1: RAW=514 V=2.512
+[17:30:35] [GATE4] ADC ON sample 2: RAW=513 V=2.507
+[17:30:35] [GATE4] ADC ON sample 3: RAW=513 V=2.507
+[17:30:35] [GATE4] ADC ON sample 4: RAW=514 V=2.512
+[17:30:35] [GATE4] ADC ON sample 5: RAW=509 V=2.488
+[17:30:35] [GATE4] ADC ON sample 6: RAW=510 V=2.493
+[17:30:35] [GATE4] ADC ON sample 7: RAW=506 V=2.473
+[17:30:35] [GATE4] ADC ON sample 8: RAW=506 V=2.473
+[17:30:35] [GATE4] ADC ON average: 2.496 V
+[17:30:35] ✅ GATE 4 PASS
+[17:30:35] ==================================================
+[17:30:35] [GATE5] Starting IUL (Indicator Light) test
+[17:30:35] [GATE5] Expectations:
+[17:30:35]         IUL_ON  → GPIO LOW  (LED ON)
+[17:30:35]         IUL_OFF → GPIO HIGH (LED OFF)
+[17:30:35] [GATE5] GPIO21 configured as INPUT
+[17:30:35] [GATE5] → Sending IUL_ON (0xE1)
+[17:30:35] [GATE5] Waiting 0.3s for LED to settle
+[17:30:35] [GATE5] GPIO read 1: 0
+[17:30:36] [GATE5] GPIO read 2: 0
+[17:30:36] [GATE5] GPIO read 3: 0
+[17:30:36] [GATE5] GPIO read 4: 0
+[17:30:36] [GATE5] GPIO read 5: 0
+[17:30:36] [GATE5] IUL_ON PASS (GPIO LOW)
+[17:30:36] [GATE5] → Sending IUL_OFF (0xE0)
+[17:30:36] [GATE5] Waiting 0.3s for LED to settle
+[17:30:36] [GATE5] GPIO read 1: 1
+[17:30:36] [GATE5] GPIO read 2: 1
+[17:30:36] [GATE5] GPIO read 3: 1
+[17:30:37] [GATE5] GPIO read 4: 1
+[17:30:37] [GATE5] GPIO read 5: 1
+[17:30:37] [GATE5] IUL_OFF PASS (GPIO HIGH)
+[17:30:37] [GATE5] PASS — IUL functional test OK
+[17:30:37] [GATE5] Cleaning up GPIO
+[17:30:37] ==================================================

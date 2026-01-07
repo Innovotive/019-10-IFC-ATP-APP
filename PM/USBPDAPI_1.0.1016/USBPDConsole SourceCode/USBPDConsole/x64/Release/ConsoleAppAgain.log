@@ -1,0 +1,8 @@
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(513,5): warning MSB8028: The intermediate directory (x64\Release\) contains files shared from another project (USBPDConsole.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+  USBPDConsole.cpp
+C:\Users\NikolaM\Documents\ConsoleApp2\ConsoleAppAgain\USBPDConsole.cpp(521,40): warning C4244: '=': conversion from 'UINT16' to 'UINT8', possible loss of data
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+  All 296 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  ConsoleAppAgain.vcxproj -> C:\Users\NikolaM\Documents\ConsoleApp2\x64\Release\ConsoleAppAgain.exe

@@ -1,0 +1,12 @@
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(513,5): warning MSB8028: The intermediate directory (x64\Release\) contains files shared from another project (ConsoleAppAgain.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+  USBPDConsole.cpp
+C:\Users\NikolaM\Documents\pm125_v4.6.1\Version_1_0_1015.2\USBPDConsole\USBPDConsole.cpp(608,40): warning C4244: '=': conversion from 'UINT16' to 'UINT8', possible loss of data
+C:\Users\NikolaM\Documents\pm125_v4.6.1\Version_1_0_1015.2\USBPDConsole\USBPDConsole.cpp(769,36): warning C4244: '=': conversion from 'UINT16' to 'UINT8', possible loss of data
+C:\Users\NikolaM\Documents\pm125_v4.6.1\Version_1_0_1015.2\USBPDConsole\USBPDConsole.cpp(801,39): warning C4244: '=': conversion from 'UINT16' to 'UINT8', possible loss of data
+C:\Users\NikolaM\Documents\pm125_v4.6.1\Version_1_0_1015.2\USBPDConsole\USBPDConsole.cpp(833,38): warning C4244: '=': conversion from 'UINT16' to 'UINT8', possible loss of data
+  Generating code
+  1 of 326 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  USBPDConsole.vcxproj -> C:\Users\NikolaM\Documents\pm125_v4.6.1\Version_1_0_1015.2\x64\Release\USBPDConsole.exe
