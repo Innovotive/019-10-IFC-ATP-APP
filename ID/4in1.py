@@ -1,3 +1,4 @@
+#Author: Sirine Bouhoula
 #!/usr/bin/env python3
 import spidev
 import time
