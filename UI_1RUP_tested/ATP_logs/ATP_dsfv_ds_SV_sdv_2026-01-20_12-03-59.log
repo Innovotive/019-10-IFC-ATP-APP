@@ -1,0 +1,12 @@
+[12:03:59] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[12:03:59] === ATP START — IDs: {1: 'dsfv', 2: 'ds', 3: 'SV', 4: 'sdv'} ===
+[12:03:59] [FILE] Log created: ATP_logs/ATP_dsfv_ds_SV_sdv_2026-01-20_12-03-59.log
+[12:03:59] [UI] Setup COMPLETE — Quick Test enabled
+[12:04:01] [UI] Quick Test START
+[12:04:01] [HW] relay_on()
+[12:04:01] [GATE 1] REAL (RUP1)
+[12:04:02] [GATE 2] REAL (RUP1)
+[12:04:05] [UI] Quick Test COMPLETE
+[12:07:04] [HW] Shutdown: Window closed
+[12:07:04] [HW] END_ATP sent
+[12:07:04] [HW] relay_off()

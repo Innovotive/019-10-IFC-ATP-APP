@@ -1,4 +1,4 @@
-from pm125 import PM125
+from switch.pm125 import PM125
 import time
 
 WAIT = 5             # seconds

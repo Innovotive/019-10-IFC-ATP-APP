@@ -1,92 +1,88 @@
 """
 =========================================================
-GATE 5 – IUL (Indicator User Light) FUNCTIONAL TEST
+GATE 5 – IUL (Indicator User Light) FUNCTIONAL TEST (slot-aware)
 =========================================================
 
-Test logic:
-- Send CAN command IUL_ON  → GPIO must go LOW  (LED ON)
-- Send CAN command IUL_OFF → GPIO must go HIGH (LED OFF)
+Per slot:
+- Address the correct RUP via CAN (set_target_slot(slot))
+- Read the correct GPIO input pin for that slot
+
+IUL expectations:
+- IUL_ON  → GPIO LOW  (LED ON)
+- IUL_OFF → GPIO HIGH (LED OFF)
 
 Returns:
-- True  → PASS
-- False → FAIL
+- True  → PASS (for this slot)
+- False → FAIL (for this slot)
 """
 
 import time
 import lgpio
 
-from tests.CAN.can_commands import iul_on, iul_off
+from tests.CAN.can_commands import set_target_slot, iul_on, iul_off
 
-# ==============================
-# GPIO CONFIG
-# ==============================
-GPIO_IUL = 21
 GPIO_CHIP = 0
 
+# Slot -> GPIO input pin mapping (your wiring)
+SLOT_TO_GPIO_IUL = {
+    1: 18,
+    2: 23,
+    3: 24,
+    4: 25,
+}
+
 # Timing (tweak if needed)
-IUL_SETTLE_TIME = 0.3    # seconds
-READ_RETRIES = 5
-READ_DELAY = 0.1         # seconds
+IUL_SETTLE_TIME = 4   # seconds
+READ_RETRIES = 4
+READ_DELAY = 4        # seconds
 
 
-# ==============================
-# GPIO HELPERS
-# ==============================
-def read_gpio_stable(h, gpio):
-    """
-    Read GPIO multiple times to avoid glitches.
-    Returns last read value (0 or 1).
-    """
-    val = None
-    for _ in range(READ_RETRIES):
-        val = lgpio.gpio_read(h, gpio)
-        time.sleep(READ_DELAY)
-    return val
-
-
-# =========================================================
-# PUBLIC API — CALLED BY UI LATER
-# =========================================================
-def run_gate5_iul_check(log_cb=None):
-
-    def log(msg):
+def run_gate5_iul_check(slot: int, log_cb=None) -> bool:
+    def log(msg: str):
         if log_cb:
             log_cb(msg)
         else:
             print(msg)
 
+    if slot not in SLOT_TO_GPIO_IUL:
+        raise ValueError(f"[GATE5] Invalid slot={slot} (expected 1..4)")
+
+    gpio_iul = SLOT_TO_GPIO_IUL[slot]
+
     log("=" * 50)
-    log("[GATE5] Starting IUL (Indicator Light) test")
+    log(f"[GATE5] Slot={slot} — IUL test using GPIO{gpio_iul}")
     log("[GATE5] Expectations:")
     log("        IUL_ON  → GPIO LOW  (LED ON)")
     log("        IUL_OFF → GPIO HIGH (LED OFF)")
 
+    h = None
     try:
-        h = lgpio.gpiochip_open(GPIO_CHIP)
-        lgpio.gpio_claim_input(h, GPIO_IUL)
-        log(f"[GATE5] GPIO{GPIO_IUL} configured as INPUT")
-    except Exception as e:
-        log(f"[GATE5][ERROR] GPIO init failed: {e}")
-        return False
+        # Ensure CAN is addressed to the correct RUP
+        set_target_slot(slot)
 
-    try:
+        # Init GPIO input for this slot
+        h = lgpio.gpiochip_open(GPIO_CHIP)
+        lgpio.gpio_claim_input(h, gpio_iul)
+        log(f"[GATE5] GPIO{gpio_iul} configured as INPUT")
+
         # ------------------------------
         # IUL ON
         # ------------------------------
         log("[GATE5] → Sending IUL_ON (0xE1)")
+        set_target_slot(slot)  # extra safety
         iul_on()
+
         log(f"[GATE5] Waiting {IUL_SETTLE_TIME}s for LED to settle")
         time.sleep(IUL_SETTLE_TIME)
 
         reads = []
         for i in range(READ_RETRIES):
-            val = lgpio.gpio_read(h, GPIO_IUL)
+            val = lgpio.gpio_read(h, gpio_iul)
             reads.append(val)
             log(f"[GATE5] GPIO read {i+1}: {val}")
             time.sleep(READ_DELAY)
 
-        state = reads[-1]
-        if state != 0:
+        if reads[-1] != 0:
             log("[GATE5][FAIL] IUL_ON but GPIO is not LOW")
             return False
 
@@ -96,19 +92,20 @@ def run_gate5_iul_check(log_cb=None):
         # IUL OFF
         # ------------------------------
         log("[GATE5] → Sending IUL_OFF (0xE0)")
+        set_target_slot(slot)  # extra safety
         iul_off()
+
         log(f"[GATE5] Waiting {IUL_SETTLE_TIME}s for LED to settle")
         time.sleep(IUL_SETTLE_TIME)
 
         reads = []
         for i in range(READ_RETRIES):
-            val = lgpio.gpio_read(h, GPIO_IUL)
+            val = lgpio.gpio_read(h, gpio_iul)
             reads.append(val)
             log(f"[GATE5] GPIO read {i+1}: {val}")
             time.sleep(READ_DELAY)
 
-        state = reads[-1]
-        if state != 1:
+        if reads[-1] != 1:
             log("[GATE5][FAIL] IUL_OFF but GPIO is not HIGH")
             return False
 
@@ -116,10 +113,15 @@ def run_gate5_iul_check(log_cb=None):
         log("[GATE5] PASS — IUL functional test OK")
         return True
 
+    except Exception as e:
+        log(f"[GATE5][ERROR] {e}")
+        return False
+
     finally:
         log("[GATE5] Cleaning up GPIO")
         try:
-            lgpio.gpiochip_close(h)
+            if h is not None:
+                lgpio.gpiochip_close(h)
         except Exception:
             pass
         log("=" * 50)

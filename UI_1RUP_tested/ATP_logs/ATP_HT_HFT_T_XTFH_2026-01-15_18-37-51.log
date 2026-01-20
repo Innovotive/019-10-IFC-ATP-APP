@@ -1,0 +1,77 @@
+[18:37:51] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[18:37:51] === ATP START — IDs: {1: 'HT', 2: 'HFT', 3: 'T', 4: 'XTFH'} ===
+[18:37:51] [FILE] Log created: ATP_logs/ATP_HT_HFT_T_XTFH_2026-01-15_18-37-51.log
+[18:37:51] [UI] Setup COMPLETE — Quick Test enabled
+[18:37:52] [UI] Quick Test START
+[18:37:52] [HW] relay_on()
+[18:37:53] [GATE 1] REAL (RUP1)
+[18:37:54] [GATE 2] REAL (RUP1)
+[18:37:57] [UI] Quick Test COMPLETE
+[18:38:06] [UI] Full ATP START
+[18:38:07] [GATE 3] SIMULATED (depends on Gate 2)
+[18:38:08] ============================================================
+[18:38:08] [GATE4] Termination test (peak-based via can_commands)
+[18:38:08] [GATE4] settle=2.5s window=3.0s fs=500Hz thresh=2.8V topN=20
+[18:38:08] [GATE4] PASS needs OFF>ON: dvmax≥0.12V and dtopMean≥0.08V
+[18:38:08] [GATE4] SPI + GPIO initialized
+[18:38:08] [GATE4] → Sending TERMINATION_ON
+[18:38:08] [GATE4] Waiting 2.5s before measuring ON...
+[18:38:11] [GATE4] Measuring ON window...
+[18:38:14] [GATE4] ON : vmax=3.695V, top20_mean=3.6837732160312804, above=545 (36.3%)
+[18:38:14] [GATE4] → Sending TERMINATION_OFF
+[18:38:14] [GATE4] Waiting 2.5s before measuring OFF...
+[18:38:16] [GATE4] Measuring OFF window...
+[18:38:19] [GATE4] OFF: vmax=3.915V, top20_mean=3.9037145650048877, above=532 (35.5%)
+[18:38:19] [GATE4] Δ metrics: dvmax=0.220V, dtopMean=0.220V
+[18:38:19] [GATE4] PASS — termination change detected
+[18:38:19] [GATE4] SPI + GPIO released
+[18:38:19] ==================================================
+[18:38:19] [GATE5] Starting IUL (Indicator Light) test
+[18:38:19] [GATE5] Expectations:
+[18:38:19]         IUL_ON  → GPIO LOW  (LED ON)
+[18:38:19]         IUL_OFF → GPIO HIGH (LED OFF)
+[18:38:19] [GATE5] GPIO25 configured as INPUT
+[18:38:19] [GATE5] → Sending IUL_ON (0xE1)
+[18:38:19] [GATE5] Waiting 4s for LED to settle
+[18:38:23] [GATE5] GPIO read 1: 1
+[18:38:27] [GATE5] GPIO read 2: 1
+[18:38:31] [GATE5] GPIO read 3: 1
+[18:38:35] [GATE5] GPIO read 4: 1
+[18:38:39] [GATE5][FAIL] IUL_ON but GPIO is not LOW
+[18:38:39] [GATE5] Cleaning up GPIO
+[18:38:39] ==================================================
+[18:38:43] [GATE7] Starting Gate 7 power check
+[18:38:43] [GATE7] PM125 connected
+[18:38:43] [GATE7] PM125 clean start: set 5V and 0mA
+[18:38:45] [GATE7] RUP: sending POWER_TO_60W (once at start)
+[18:38:47] --------------------------------------------------
+[18:38:47] [GATE7] STEP 60W | desired 20.0V | target 60W
+[18:38:47] [GATE7] PM125: negotiating voltage...
+[18:38:49]    try idx=4 -> CONSTAT voltage=0 mV
+[18:38:51]    try idx=3 -> CONSTAT voltage=0 mV
+[18:38:53]    try idx=2 -> CONSTAT voltage=0 mV
+[18:38:55]    try idx=1 -> CONSTAT voltage=0 mV
+[18:38:57]    try idx=0 -> CONSTAT voltage=0 mV
+[18:38:57] [GATE7] FINAL CONSTAT: {'port_status': 0, 'profile_index': 0, 'profile': 0, 'profile_subtype': 0, 'voltage_mv': 0, 'max_current_ma': 0, 'max_power_mw': 0}
+[18:38:57] [GATE7][FAIL] Could not negotiate 20.0V
+[18:38:58] [GATE7] Gate7 pass=False (RUP1 real, RUP2-4 simulated)
+[18:38:58] [GATE7] Starting Gate 7 power check
+[18:38:58] [GATE7] PM125 connected
+[18:38:58] [GATE7] PM125 clean start: set 5V and 0mA
+[18:38:58] [GATE7] RUP: sending POWER_TO_60W (once at start)
+[18:38:58] --------------------------------------------------
+[18:38:58] [GATE7] STEP 60W | desired 20.0V | target 60W
+[18:38:58] [GATE7] PM125: negotiating voltage...
+[18:38:58]    try idx=4 -> CONSTAT voltage=0 mV
+[18:38:58]    try idx=3 -> CONSTAT voltage=0 mV
+[18:38:58]    try idx=2 -> CONSTAT voltage=0 mV
+[18:38:58]    try idx=1 -> CONSTAT voltage=0 mV
+[18:38:58]    try idx=0 -> CONSTAT voltage=0 mV
+[18:38:58] [GATE7] FINAL CONSTAT: {'port_status': 0, 'profile_index': 0, 'profile': 0, 'profile_subtype': 0, 'voltage_mv': 0, 'max_current_ma': 0, 'max_power_mw': 0}
+[18:38:58] [GATE7][FAIL] Could not negotiate 20.0V
+[18:38:58] [UI] Full ATP COMPLETE
+[18:38:58] [HW] Shutdown: Full ATP complete
+[18:38:58] [HW] END_ATP sent
+[18:38:58] [HW] relay_off()
+[18:38:58] [FILE] Excel written: ATP_logs/ATP_HT_HFT_T_XTFH_2026-01-15_18-37-51.xlsx
+[18:38:58] === ATP END ===

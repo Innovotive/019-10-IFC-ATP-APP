@@ -2,11 +2,11 @@ from gpiozero import LED
 
 # Active-low relay:
 # GPIO HIGH  -> relay OFF
-# GPIO LOW   -> relay ON
+# GPIO LOW   -> relay ON 
 relay = LED(
-    26,
-    active_high=False,     # IMPORTANT
-    initial_value=False     # GPIO HIGH at creation -> relay OFF
+    13,
+    active_high=False,    
+    initial_value=False     
 )
 
 def relay_on():
@@ -16,3 +16,4 @@ def relay_on():
 def relay_off():
     relay.off()  # active_low -> GPIO HIGH
     print("[HW] OK – relay is OFF")
+ 

@@ -1,0 +1,14 @@
+[11:17:52] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[11:17:52] === ATP START — IDs: {1: 'nr', 2: 'rt', 3: 'trh', 4: 't'} ===
+[11:17:52] [FILE] Log created: ATP_logs/ATP_nr_rt_trh_t_2026-01-14_11-17-52.log
+[11:17:52] [UI] Setup COMPLETE — Quick Test enabled
+[11:17:53] [UI] Quick Test START
+[11:17:53] [HW] relay_on()
+[11:17:54] [GATE 1] REAL (RUP1)
+[11:17:59] [GATE 2] REAL (RUP1)
+[11:18:03] [UI] Quick Test failed — failed_slots=[1]
+[11:18:03] [UI] Quick Test LOCKED until replacement is done
+[11:18:03] [UI] Quick Test COMPLETE
+[11:18:06] [HW] Shutdown: Window closed
+[11:18:06] [HW] END_ATP sent
+[11:18:06] [HW] relay_off()

@@ -1,0 +1,53 @@
+[13:24:54] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[13:24:54] === ATP START — IDs: {1: 'jn', 2: 'ngf', 3: 'gnf', 4: 'n'} ===
+[13:24:54] [FILE] Log created: ATP_logs/ATP_jn_ngf_gnf_n_2026-01-14_13-24-54.log
+[13:24:54] [UI] Setup COMPLETE — Quick Test enabled
+[13:24:56] [UI] Quick Test START
+[13:24:56] [HW] relay_on()
+[13:24:57] [GATE 1] REAL (RUP1)
+[13:24:58] [GATE 2] REAL (RUP1)
+[13:25:01] [UI] Quick Test COMPLETE
+[13:25:03] [UI] Full ATP START
+[13:25:04] [GATE 3] SIMULATED (depends on Gate 2)
+[13:25:05] ============================================================
+[13:25:05] [GATE4] Termination test (peak-based via can_commands)
+[13:25:05] [GATE4] settle=2.5s window=3.0s fs=500Hz thresh=2.8V topN=20
+[13:25:05] [GATE4] PASS needs OFF>ON: dvmax≥0.12V and dtopMean≥0.08V
+[13:25:05] [GATE4] SPI + GPIO initialized
+[13:25:05] [GATE4] → Sending TERMINATION_ON
+[13:25:05] [GATE4] Waiting 2.5s before measuring ON...
+[13:25:07] [GATE4] Measuring ON window...
+[13:25:10] [GATE4] ON : vmax=3.671V, top20_mean=3.658602150537634, above=518 (34.5%)
+[13:25:10] [GATE4] → Sending TERMINATION_OFF
+[13:25:10] [GATE4] Waiting 2.5s before measuring OFF...
+[13:25:13] [GATE4] Measuring OFF window...
+[13:25:16] [GATE4] OFF: vmax=3.876V, top20_mean=3.871212121212121, above=535 (35.7%)
+[13:25:16] [GATE4] Δ metrics: dvmax=0.205V, dtopMean=0.213V
+[13:25:16] [GATE4] PASS — termination change detected
+[13:25:16] [GATE4] SPI + GPIO released
+[13:25:16] ==================================================
+[13:25:16] [GATE5] Starting IUL (Indicator Light) test
+[13:25:16] [GATE5] Expectations:
+[13:25:16]         IUL_ON  → GPIO LOW  (LED ON)
+[13:25:16]         IUL_OFF → GPIO HIGH (LED OFF)
+[13:25:16] [GATE5] GPIO25 configured as INPUT
+[13:25:16] [GATE5] → Sending IUL_ON (0xE1)
+[13:25:16] [GATE5] Waiting 4s for LED to settle
+[13:25:20] [GATE5] GPIO read 1: 1
+[13:25:24] [GATE5] GPIO read 2: 1
+[13:25:28] [GATE5] GPIO read 3: 0
+[13:25:32] [GATE5] GPIO read 4: 0
+[13:25:36] [GATE5] IUL_ON PASS (GPIO LOW)
+[13:25:36] [GATE5] → Sending IUL_OFF (0xE0)
+[13:25:36] [GATE5] Waiting 4s for LED to settle
+[13:25:40] [GATE5] GPIO read 1: 1
+[13:25:44] [GATE5] GPIO read 2: 1
+[13:25:48] [GATE5] GPIO read 3: 1
+[13:25:52] [GATE5] GPIO read 4: 1
+[13:25:56] [GATE5] IUL_OFF PASS (GPIO HIGH)
+[13:25:56] [GATE5] PASS — IUL functional test OK
+[13:25:56] [GATE5] Cleaning up GPIO
+[13:25:56] ==================================================
+[13:26:00] [GATE7] Starting Gate 7 power check
+[13:26:00] [GATE7] PM125 connected
+[13:26:00] [GATE7] PM125 clean start: set 5V and 0mA

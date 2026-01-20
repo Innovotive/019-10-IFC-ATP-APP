@@ -1,0 +1,103 @@
+[15:29:47] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[15:29:47] === ATP START — IDs: {1: 'rhbg', 2: 'trs', 3: 'h', 4: 'rt'} ===
+[15:29:47] [FILE] Log created: ATP_logs/ATP_rhbg_trs_h_rt_2026-01-19_15-29-47.log
+[15:29:47] [UI] Setup COMPLETE — Quick Test enabled
+[15:29:49] [UI] Quick Test START
+[15:29:49] [HW] relay_on()
+[15:29:49] [GATE 1] REAL (RUP1)
+[15:29:50] [GATE 2] REAL (RUP1)
+[15:29:53] [UI] Quick Test COMPLETE
+[15:29:54] [UI] Full ATP START
+[15:29:55] [GATE 3] SIMULATED (depends on Gate 2)
+[15:29:56] ============================================================
+[15:29:56] [GATE4] Termination test (peak-based via can_commands)
+[15:29:56] [GATE4] settle=2.5s window=3.0s fs=500Hz thresh=2.8V topN=20
+[15:29:56] [GATE4] PASS needs OFF>ON: dvmax≥0.12V and dtopMean≥0.08V
+[15:29:56] [GATE4] SPI + GPIO initialized
+[15:29:56] [GATE4] → Sending TERMINATION_ON
+[15:29:56] [GATE4] Waiting 2.5s before measuring ON...
+[15:29:58] [GATE4] Measuring ON window...
+[15:30:01] [GATE4] ON : vmax=3.651V, top20_mean=3.645405669599218, above=531 (35.4%)
+[15:30:01] [GATE4] → Sending TERMINATION_OFF
+[15:30:01] [GATE4] Waiting 2.5s before measuring OFF...
+[15:30:04] [GATE4] Measuring OFF window...
+[15:30:07] [GATE4] OFF: vmax=3.871V, top20_mean=3.860215053763441, above=526 (35.1%)
+[15:30:07] [GATE4] Δ metrics: dvmax=0.220V, dtopMean=0.215V
+[15:30:07] [GATE4] PASS — termination change detected
+[15:30:07] [GATE4] SPI + GPIO released
+[15:30:07] ==================================================
+[15:30:07] [GATE5] Starting IUL (Indicator Light) test
+[15:30:07] [GATE5] Expectations:
+[15:30:07]         IUL_ON  → GPIO LOW  (LED ON)
+[15:30:07]         IUL_OFF → GPIO HIGH (LED OFF)
+[15:30:07] [GATE5] GPIO18 configured as INPUT
+[15:30:07] [GATE5] → Sending IUL_ON (0xE1)
+[15:30:07] [GATE5] Waiting 4s for LED to settle
+[15:30:11] [GATE5] GPIO read 1: 1
+[15:30:15] [GATE5] GPIO read 2: 1
+[15:30:19] [GATE5] GPIO read 3: 1
+[15:30:23] [GATE5] GPIO read 4: 1
+[15:30:27] [GATE5][FAIL] IUL_ON but GPIO is not LOW
+[15:30:27] [GATE5] Cleaning up GPIO
+[15:30:27] ==================================================
+[15:30:31] [GATE7] Starting Gate 7 power check
+[15:30:31] [GATE7] PM125 connected
+[15:30:31] [GATE7] PM125 clean start: set 5V and 0mA
+[15:30:33] [GATE7] RUP: sending POWER_TO_60W (once at start)
+[15:30:35] --------------------------------------------------
+[15:30:35] [GATE7] STEP 60W | desired 20.0V | target 60W
+[15:30:35] [GATE7] PM125: negotiating voltage...
+[15:30:37]    try idx=4 -> CONSTAT voltage=20000 mV
+[15:30:37] [GATE7] FINAL CONSTAT: {'port_status': 1, 'profile_index': 4, 'profile': 5, 'profile_subtype': 0, 'voltage_mv': 20000, 'max_current_ma': 2990, 'max_power_mw': 59800}
+[15:30:37] [GATE7] Clamp: target 3000 mA > max 2990 mA
+[15:30:37] [GATE7] PM125: ramp current to 2990 mA
+[15:30:39]    ↳ set_current(250 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20448, 'set_current_ma': 250, 'current_ma': 252, 'loopback_current_ma': 0}
+[15:30:40]    ↳ set_current(500 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20282, 'set_current_ma': 500, 'current_ma': 500, 'loopback_current_ma': 0}
+[15:30:41]    ↳ set_current(750 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20141, 'set_current_ma': 750, 'current_ma': 751, 'loopback_current_ma': 0}
+[15:30:42]    ↳ set_current(1000 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20019, 'set_current_ma': 1000, 'current_ma': 996, 'loopback_current_ma': 0}
+[15:30:43]    ↳ set_current(1250 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19853, 'set_current_ma': 1250, 'current_ma': 1245, 'loopback_current_ma': 0}
+[15:30:44]    ↳ set_current(1500 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19718, 'set_current_ma': 1500, 'current_ma': 1502, 'loopback_current_ma': 0}
+[15:30:45]    ↳ set_current(1750 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19577, 'set_current_ma': 1750, 'current_ma': 1744, 'loopback_current_ma': 0}
+[15:30:46]    ↳ set_current(2000 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19417, 'set_current_ma': 2000, 'current_ma': 1995, 'loopback_current_ma': 0}
+[15:30:47]    ↳ set_current(2250 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19301, 'set_current_ma': 2250, 'current_ma': 2251, 'loopback_current_ma': 0}
+[15:30:48]    ↳ set_current(2500 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19141, 'set_current_ma': 2500, 'current_ma': 2499, 'loopback_current_ma': 0}
+[15:30:49]    ↳ set_current(2750 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 18988, 'set_current_ma': 2750, 'current_ma': 2751, 'loopback_current_ma': 0}
+[15:30:50]    ↳ set_current(2990 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 18841, 'set_current_ma': 2990, 'current_ma': 2991, 'loopback_current_ma': 0}
+[15:30:50] … PM125: 18.85 V, 2.990 A => 56.35 W (target 60 W)
+[15:30:50] [GATE7] PM PASS — 56.35W in [42.00,78.00]
+[15:30:50] [GATE7] RUP: POWER_REPORT_REQUEST (0xA2)
+[15:30:54] [GATE7][FAIL] No / invalid POWER_REPORT from RUP
+[15:30:54] [GATE7] Gate7 pass=False (RUP1 real, RUP2-4 simulated)
+[15:30:54] [GATE7] Starting Gate 7 power check
+[15:30:54] [GATE7] PM125 connected
+[15:30:54] [GATE7] PM125 clean start: set 5V and 0mA
+[15:30:54] [GATE7] RUP: sending POWER_TO_60W (once at start)
+[15:30:54] --------------------------------------------------
+[15:30:54] [GATE7] STEP 60W | desired 20.0V | target 60W
+[15:30:54] [GATE7] PM125: negotiating voltage...
+[15:30:54]    try idx=4 -> CONSTAT voltage=20000 mV
+[15:30:54] [GATE7] FINAL CONSTAT: {'port_status': 1, 'profile_index': 4, 'profile': 5, 'profile_subtype': 0, 'voltage_mv': 20000, 'max_current_ma': 2990, 'max_power_mw': 59800}
+[15:30:54] [GATE7] Clamp: target 3000 mA > max 2990 mA
+[15:30:54] [GATE7] PM125: ramp current to 2990 mA
+[15:30:54]    ↳ set_current(250 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20448, 'set_current_ma': 250, 'current_ma': 252, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(500 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20282, 'set_current_ma': 500, 'current_ma': 500, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(750 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20141, 'set_current_ma': 750, 'current_ma': 751, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(1000 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 20019, 'set_current_ma': 1000, 'current_ma': 996, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(1250 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19853, 'set_current_ma': 1250, 'current_ma': 1245, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(1500 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19718, 'set_current_ma': 1500, 'current_ma': 1502, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(1750 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19577, 'set_current_ma': 1750, 'current_ma': 1744, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(2000 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19417, 'set_current_ma': 2000, 'current_ma': 1995, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(2250 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19301, 'set_current_ma': 2250, 'current_ma': 2251, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(2500 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 19141, 'set_current_ma': 2500, 'current_ma': 2499, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(2750 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 18988, 'set_current_ma': 2750, 'current_ma': 2751, 'loopback_current_ma': 0}
+[15:30:54]    ↳ set_current(2990 mA) | STAT: {'status': 0, 'temperature_c': 26, 'voltage_mv': 18841, 'set_current_ma': 2990, 'current_ma': 2991, 'loopback_current_ma': 0}
+[15:30:54] … PM125: 18.85 V, 2.990 A => 56.35 W (target 60 W)
+[15:30:54] [GATE7] PM PASS — 56.35W in [42.00,78.00]
+[15:30:54] [GATE7] RUP: POWER_REPORT_REQUEST (0xA2)
+[15:30:54] [GATE7][FAIL] No / invalid POWER_REPORT from RUP
+[15:30:54] [UI] Full ATP COMPLETE
+[15:30:54] [HW] Shutdown: Full ATP complete
+[15:30:54] [HW] END_ATP sent
+[15:30:54] [HW] relay_off()
+[15:30:54] [FILE] Excel written: ATP_logs/ATP_rhbg_trs_h_rt_2026-01-19_15-29-47.xlsx
+[15:30:54] === ATP END ===

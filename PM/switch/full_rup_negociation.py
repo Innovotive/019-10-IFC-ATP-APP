@@ -2,7 +2,7 @@
 import time
 import json
 from pm125 import PM125
-from power_negociation import run_gate7
+from PM.switch.power_negociation import run_gate7
 from acroname_switch import select_rup, sw
 
 WAIT_FOR_PD = 5

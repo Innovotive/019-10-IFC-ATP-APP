@@ -1,27 +1,36 @@
 import time
-from tests.power_PT.relay import relay_on, relay_off
-from tests.power_PT.power import read_power_state
 
+from tests.power_PT.power_1_4 import (
+    read_power_state_rup1,
+    read_power_state_rup2,
+    read_power_state_rup3,
+    read_power_state_rup4,
+)
 
-def run_gate1_power_test() -> bool:
+def run_gate1_power_test(slot: int = 1) -> bool:
     """
-    Gate 1 – Power Pass-Through Test (REAL)
+    Gate1: Power pass-through / power detect check.
+
+    IMPORTANT:
+    - Does NOT control relays anymore.
+    - The caller (QuickRunner/Main) is responsible for powering ON the desired RUP.
     """
 
-    print("[GATE1] Starting power pass-through test for RUP1")
+    print(f"[GATE1] Starting power detect test for RUP{slot}")
 
-    # 1) Relay ON
-    relay_on()
+    # Small settle time after relay ON (runner already waited too, but safe)
+    time.sleep(0.2)
 
-    # 2) Let power stabilize
-    time.sleep(0.5)
+    if slot == 1:
+        power_ok = read_power_state_rup1()
+    elif slot == 2:
+        power_ok = read_power_state_rup2()
+    elif slot == 3:
+        power_ok = read_power_state_rup3()
+    elif slot == 4:
+        power_ok = read_power_state_rup4()
+    else:
+        raise ValueError(f"Invalid slot: {slot}")
 
-    # 3) Read power detect GPIO
-    power_ok = read_power_state()
-
-    # 4) Relay OFF 
-    #relay_off()
-
-    print(f"[GATE1] RUP1 {'PASS' if power_ok else 'FAIL'}")
-
-    return power_ok
+    print(f"[GATE1] RUP{slot} {'PASS' if power_ok else 'FAIL'}")
+    return bool(power_ok)

@@ -66,8 +66,8 @@ def send_command(command_byte, description):
 # ==============================
 
 # start ATP
-#send_command(START_ATP, "START_ATP")
-send_command(END_ATP, "END_ATP")
+send_command(START_ATP, "START_ATP")
+#send_command(END_ATP, "END_ATP")
 # Turn IUL ON GPIO Reads 0
 #send_command(IUL_ON, "IUL_ON")
 #send_command(IUL_OFF, "IUL_OFF")

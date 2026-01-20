@@ -10,7 +10,18 @@ msg = can.Message(
     is_extended_id=False
 )
 
-print("Sending frame: ID=0x100, data=[0x01, 0x02]")
-bus.send(msg)
-time.sleep(0.1)
-print("Done.")
+print("Sending CAN messages (Ctrl+C to stop)")
+
+try:
+    while True:
+        try:
+            bus.send(msg)
+        except can.CanOperationError:
+            # TX buffer full → wait a bit and continue
+            time.sleep(0.02) #50Hz
+
+except KeyboardInterrupt:
+    print("\nStopped")
+
+finally:
+    bus.shutdown()

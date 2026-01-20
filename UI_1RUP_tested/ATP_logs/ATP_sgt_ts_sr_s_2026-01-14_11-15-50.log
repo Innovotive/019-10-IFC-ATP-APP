@@ -1,0 +1,7 @@
+[11:15:50] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[11:15:50] === ATP START — IDs: {1: 'sgt', 2: 'ts', 3: 'sr', 4: 's'} ===
+[11:15:50] [FILE] Log created: ATP_logs/ATP_sgt_ts_sr_s_2026-01-14_11-15-50.log
+[11:15:50] [UI] Setup COMPLETE — Quick Test enabled
+[11:15:51] [UI] Quick Test START
+[11:15:51] [HW] relay_on()
+[11:15:52] [GATE 1] REAL (RUP1)

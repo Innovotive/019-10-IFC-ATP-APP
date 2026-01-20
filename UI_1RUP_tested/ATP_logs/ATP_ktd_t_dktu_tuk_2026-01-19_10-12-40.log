@@ -1,0 +1,11 @@
+[10:12:40] [INIT] ID pins configured (ACTIVE-HIGH, ID3 OFF)
+[10:12:40] === ATP START — IDs: {1: 'ktd', 2: 't', 3: 'dktu', 4: 'tuk'} ===
+[10:12:40] [FILE] Log created: ATP_logs/ATP_ktd_t_dktu_tuk_2026-01-19_10-12-40.log
+[10:12:40] [UI] Setup COMPLETE — Quick Test enabled
+[10:12:42] [UI] Quick Test START
+[10:12:42] [HW] relay_on()
+[10:12:42] [GATE 1] REAL (RUP1)
+[10:12:43] [GATE 2] REAL (RUP1)
+[10:12:48] [UI] Quick Test failed — failed_slots=[1]
+[10:12:48] [UI] Quick Test LOCKED until replacement is done
+[10:12:48] [UI] Quick Test COMPLETE

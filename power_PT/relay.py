@@ -2,7 +2,7 @@
 from gpiozero import LED
 import time
 
-relay = LED(26)
+relay = LED(22)  #breadboarded version GPIO26
 
 def relay_on():
     relay.off()    #relay active low

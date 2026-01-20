@@ -1,7 +1,7 @@
 import lgpio
 import time
 
-GPIO = 21
+GPIO = 25 #breadboard version21
 
 # Open gpio chip
 h = lgpio.gpiochip_open(0)

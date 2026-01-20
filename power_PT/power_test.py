@@ -2,7 +2,7 @@
 import RPi.GPIO as GPIO
 import time
 
-POWER_GPIO = 18
+POWER_GPIO = 21
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(POWER_GPIO, GPIO.IN)
