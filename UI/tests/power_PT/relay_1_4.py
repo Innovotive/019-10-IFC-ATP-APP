@@ -67,7 +67,7 @@ _relay_rup1 = LED(RELAY_GPIO_RUP1, active_high=False, initial_value=False)
 _relay_rup2 = LED(RELAY_GPIO_RUP2, active_high=False, initial_value=False)
 _relay_rup3 = LED(RELAY_GPIO_RUP3, active_high=False, initial_value=False)
 _relay_rup4 = LED(RELAY_GPIO_RUP4, active_high=False, initial_value=False)
-
+                                                    
 
 # -------------------------
 # RUP1 relay functions

@@ -225,7 +225,7 @@ def _run_single_pm_step(pm: PM125, can_bus: can.BusABC, step: dict, log, fail_fn
 # ==============================
 # SUBPROCESS FALLBACK RUNNER
 # ==============================
-def _run_gate7_in_venv(slot: int, log) -> Tuple[Dict[str, Any], List[str]]:
+def _run_gate6_in_venv(slot: int, log) -> Tuple[Dict[str, Any], List[str]]:
     logs: List[str] = []
     results: Dict[str, Any] = {"pass": False, "slot": slot, "failed_step": "VENV", "steps": []}
 
@@ -280,7 +280,7 @@ def _run_gate7_in_venv(slot: int, log) -> Tuple[Dict[str, Any], List[str]]:
 # =========================================================
 # PUBLIC API — DETAILED (returns results + logs)
 # =========================================================
-def run_gate7(slot: int, log_cb=None):
+def run_gate6(slot: int, log_cb=None):
     logs: List[str] = []
     results: Dict[str, Any] = {"pass": False, "failed_step": None, "steps": [], "slot": slot}
 

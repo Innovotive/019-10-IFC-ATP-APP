@@ -30,7 +30,6 @@ class Reporter:
         self.write_line(f"[FILE] Log created: {self.log_path}")
 
     def write_line(self, line: str) -> None:
-        # This function expects the caller to add timestamps if desired.
         if self.log_file:
             self.log_file.write(line + "\n")
             self.log_file.flush()
@@ -57,7 +56,8 @@ class Reporter:
         for cell in ws[1]:
             cell.font = Font(bold=True)
 
-        for g in range(1, 8):  # 1..7
+        # ✅ gates 1..6 (no skip)
+        for g in range(1, 7):
             ws.append(
                 [f"Gate {g}"] +
                 ["PASS" if bool(gate_results[g][r]) else "FAIL" for r in range(1, 5)]

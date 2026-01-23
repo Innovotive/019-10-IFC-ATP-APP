@@ -37,7 +37,7 @@ READ_RETRIES = 4
 READ_DELAY = 4        # seconds
 
 
-def run_gate5_iul_check(slot: int, log_cb=None) -> bool:
+def run_gate4_iul_check(slot: int, log_cb=None) -> bool:
     def log(msg: str):
         if log_cb:
             log_cb(msg)

@@ -13,11 +13,10 @@ class SlotWidget(QWidget):
     GATE_NAMES = {
         1: "Power Pass-Through Voltage",
         2: "CAN-Bus Pass-Through",
-        3: "CAN Communication Check",
-        4: "CAN Termination Resistance Check",
-        5: "In-Use Light Check",
-        6: "ID-Pins Functional Test",
-        7: "USB-C Power Delivery / Load Regulation",
+        3: "CAN Termination Resistance Check",
+        4: "In-Use Light Check",
+        5: "ID-Pins Functional Test",
+        6: "USB-C Power Delivery / Load Regulation",
     }
 
     def __init__(self, slot_index, color):
@@ -37,7 +36,7 @@ class SlotWidget(QWidget):
         self.set_led("gray")
 
         self.progress = QProgressBar()
-        self.progress.setRange(0, 7)  # last gate is 7
+        self.progress.setRange(0, 6)  # last gate is 6
         self.progress.setValue(0)
 
         header = QHBoxLayout()
@@ -56,7 +55,6 @@ class SlotWidget(QWidget):
             return f"Slot {self.slot_index} ({self.color_name}) — ID: {self.rup_id}"
         return f"Slot {self.slot_index} ({self.color_name})"
 
-    # ---- UI update helpers (still UI-side) ----
     def set_rup_id(self, rup_id):
         self.rup_id = rup_id
         self.title.setText(self._make_title())
@@ -71,7 +69,7 @@ class SlotWidget(QWidget):
         """
         Displays:
           - Gate: --- (when g == 0)
-          - Gate <n>: <name> (when g in 1..7)
+          - Gate <n>: <name> (when g in 1..6)
         """
         if g == 0:
             self.gate.setText("Gate: ---")
@@ -87,11 +85,6 @@ class SlotWidget(QWidget):
 # UI BUILDER (ALL LAYOUT / UX HERE)
 # ======================================================================
 class Ui_MainWindow:
-    """
-    Qt Designer-style UI class:
-    - setupUi(main_window) builds all widgets/layouts
-    - exposes widget refs as self.btn_start, self.log_box, self.slots, etc.
-    """
     def setupUi(self, main_window):
         main_window.setWindowTitle("RUP ATP Test Platform")
         main_window.resize(1050, 720)

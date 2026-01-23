@@ -1,6 +1,6 @@
 # runners/full_runner.py
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Tuple, Any
+from typing import Callable, Dict, Optional, Tuple, Any, Union
 
 from services.hardware import HardwareController
 from tests.CAN.can_commands import set_target_slot
@@ -19,7 +19,7 @@ class FullRunner:
     Full ATP (sequential per RUP):
       For slot 1..4:
         relay ON
-        gate3..gate7
+        gate3..gate6
         relay OFF
     """
 
@@ -28,20 +28,20 @@ class FullRunner:
         hw: HardwareController,
         log_cb: Callable[[str], None],
         on_update: Callable[[FullUpdate], None],
+        run_gate3_fn: Callable[[int, Callable[[str], None]], bool],  # slot-aware
         run_gate4_fn: Callable[[int, Callable[[str], None]], bool],  # slot-aware
         run_gate5_fn: Callable[[int, Callable[[str], None]], bool],  # slot-aware
-        run_gate6_fn: Callable[[int, Callable[[str], None]], bool],  # slot-aware
-        run_gate7_fn: Callable[..., Tuple[Dict[str, Any], list]],     # now called with (slot, log_cb=...)
+        run_gate6_fn: Callable[..., Union[bool, Tuple[Dict[str, Any], list]]],  # slot-aware
         check_power_before_full: bool = True,
     ):
         self.hw = hw
         self.log = log_cb
         self.on_update = on_update
 
+        self.run_gate3_fn = run_gate3_fn
         self.run_gate4_fn = run_gate4_fn
         self.run_gate5_fn = run_gate5_fn
         self.run_gate6_fn = run_gate6_fn
-        self.run_gate7_fn = run_gate7_fn
 
         self.check_power_before_full = check_power_before_full
         self.reset()
@@ -50,13 +50,14 @@ class FullRunner:
         self.active = False
         self.done = False
         self.current_slot = 1
-        self.phase = "power_on"  # power_on, gate3, gate4, gate5, gate6, gate7, power_off
+        # phases: power_on, gate3, gate4, gate5, gate6, power_off
+        self.phase = "power_on"
 
     def start(self) -> None:
         self.reset()
         self.active = True
         self.done = False
-        self.log("[FULL] Start: sequential RUP1..RUP4 (gates 3..7)")
+        self.log("[FULL] Start: sequential RUP1..RUP4 (gates 3..6)")
         self.on_update(FullUpdate(gate=0, slot=1, status="Starting...", led="yellow"))
 
     def step(self, gate_results: Dict[int, Dict[int, bool]]) -> bool:
@@ -78,7 +79,7 @@ class FullRunner:
                 self.hw.relay_on(s)
             except Exception as e:
                 self.log(f"[HW][FAIL] RUP{s} relay ON error: {e}")
-                for g in range(3, 8):
+                for g in range(3, 7):  # 3..6
                     gate_results[g][s] = False
                 self.phase = "power_off"
                 return False
@@ -92,7 +93,7 @@ class FullRunner:
 
                 if not pwr:
                     self.log(f"[HW][FAIL] RUP{s}: power_detect=False")
-                    for g in range(3, 8):
+                    for g in range(3, 7):
                         gate_results[g][s] = False
                     self.on_update(FullUpdate(gate=0, slot=s, status="NO POWER (FAIL)", led="red"))
                     self.phase = "power_off"
@@ -109,83 +110,95 @@ class FullRunner:
             return False
 
         # -------------------------
-        # GATE 3 (depends on gate2 for this slot)
+        # GATE 3 (REAL)
         # -------------------------
         if self.phase == "gate3":
             g = 3
-            self.log(f"[GATE3] RUP{s}: simulated depends on Gate2")
-            gate_results[g][s] = bool(gate_results[2][s])
+            self.log(f"[GATE{g}] RUP{s}: REAL")
+            try:
+                set_target_slot(s)
+                gate_results[g][s] = bool(self.run_gate3_fn(s, self.log))
+            except Exception as e:
+                self.log(f"[GATE{g}][ERROR] RUP{s}: {e}")
+                gate_results[g][s] = False
+
             self.on_update(FullUpdate(gate=g, slot=s, status="PASS" if gate_results[g][s] else "FAIL", led=None))
             self.phase = "gate4"
             return False
 
         # -------------------------
-        # GATE 4 (REAL, slot-aware)
+        # GATE 4 (REAL)
         # -------------------------
         if self.phase == "gate4":
             g = 4
-            self.log(f"[GATE4] RUP{s}: REAL")
+            self.log(f"[GATE{g}] RUP{s}: REAL")
             try:
                 set_target_slot(s)
                 gate_results[g][s] = bool(self.run_gate4_fn(s, self.log))
             except Exception as e:
-                self.log(f"[GATE4][ERROR] RUP{s}: {e}")
+                self.log(f"[GATE{g}][ERROR] RUP{s}: {e}")
                 gate_results[g][s] = False
+
             self.on_update(FullUpdate(gate=g, slot=s, status="PASS" if gate_results[g][s] else "FAIL", led=None))
             self.phase = "gate5"
             return False
 
         # -------------------------
-        # GATE 5 (REAL, slot-aware)
+        # GATE 5 (REAL)
         # -------------------------
         if self.phase == "gate5":
             g = 5
-            self.log(f"[GATE5] RUP{s}: REAL")
+            self.log(f"[GATE{g}] RUP{s}: REAL")
             try:
                 set_target_slot(s)
                 gate_results[g][s] = bool(self.run_gate5_fn(s, self.log))
             except Exception as e:
-                self.log(f"[GATE5][ERROR] RUP{s}: {e}")
+                self.log(f"[GATE{g}][ERROR] RUP{s}: {e}")
                 gate_results[g][s] = False
+
             self.on_update(FullUpdate(gate=g, slot=s, status="PASS" if gate_results[g][s] else "FAIL", led=None))
             self.phase = "gate6"
             return False
 
         # -------------------------
-        # GATE 6 (REAL, slot-aware)
+        # GATE 6 (REAL) — supports bool OR (results, logs)
         # -------------------------
         if self.phase == "gate6":
             g = 6
-            self.log(f"[GATE6] RUP{s}: REAL")
+            self.log(f"[GATE{g}] RUP{s}: REAL")
             try:
                 set_target_slot(s)
-                gate_results[g][s] = bool(self.run_gate6_fn(s, self.log))
-            except Exception as e:
-                self.log(f"[GATE6][ERROR] RUP{s}: {e}")
-                gate_results[g][s] = False
-            self.on_update(FullUpdate(gate=g, slot=s, status="PASS" if gate_results[g][s] else "FAIL", led=None))
-            self.phase = "gate7"
-            return False
 
-        # -------------------------
-        # GATE 7 (REAL, slot-aware: pass slot to gate7)
-        # -------------------------
-        if self.phase == "gate7":
-            g = 7
-            self.log(f"[GATE7] RUP{s}: REAL")
-            try:
-                set_target_slot(s)
-                results, logs = self.run_gate7_fn(s, log_cb=self.log)  # ✅ pass slot
-                ok = bool(results.get("pass", False))
+                out = self.run_gate6_fn(s, log_cb=self.log)  # allow keyword
+                ok = False
+                logs = []
+
+                if isinstance(out, tuple) and len(out) == 2 and isinstance(out[0], dict):
+                    results, logs = out
+                    ok = bool(results.get("pass", False))
+                else:
+                    ok = bool(out)
+
                 gate_results[g][s] = ok
-                self.log(f"[GATE7] RUP{s} pass={ok}")
+                self.log(f"[GATE{g}] RUP{s} pass={ok}")
+
                 try:
                     for line in logs:
                         self.log(line)
                 except Exception:
                     pass
+
+            except TypeError:
+                # If gate6 signature is (slot, log_cb) not (slot, log_cb=)
+                try:
+                    out = self.run_gate6_fn(s, self.log)
+                    gate_results[g][s] = bool(out)
+                except Exception as e:
+                    self.log(f"[GATE{g}][ERROR] RUP{s}: {e}")
+                    gate_results[g][s] = False
+
             except Exception as e:
-                self.log(f"[GATE7][ERROR] RUP{s}: {e}")
+                self.log(f"[GATE{g}][ERROR] RUP{s}: {e}")
                 gate_results[g][s] = False
 
             self.on_update(FullUpdate(gate=g, slot=s, status="PASS" if gate_results[g][s] else "FAIL", led=None))
@@ -202,9 +215,9 @@ class FullRunner:
             except Exception as e:
                 self.log(f"[HW][WARN] RUP{s} relay OFF error: {e}")
 
-            full_ok = all(bool(gate_results[g][s]) for g in range(3, 8))
+            full_ok = all(bool(gate_results[g][s]) for g in range(3, 7))  # 3..6
             self.on_update(FullUpdate(
-                gate=7,
+                gate=6,
                 slot=s,
                 status="Done (PASS)" if full_ok else "Done (FAIL)",
                 led="green" if full_ok else "red"

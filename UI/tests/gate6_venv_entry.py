@@ -2,7 +2,7 @@
 import argparse
 import json
 
-from tests.gate7 import run_gate7  # import the same gate7 module inside the venv
+from UI.tests.gate6_pdo import run_gate6  # import the same gate7 module inside the venv
 
 MARKER = "=== JSON_RESULT ==="
 

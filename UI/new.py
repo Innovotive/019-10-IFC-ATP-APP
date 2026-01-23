@@ -24,10 +24,10 @@ from tests.ID.id_pins_init import init_id_pins_active_high
 # =========================
 from tests.gate1_power_passthrough import run_gate1_power_test
 from tests.gate2_CAN_check import gate2_can_check
-from tests.gate4_test import run_gate4_termination_check
-from tests.gate5_iul_check import run_gate5_iul_check
-from tests.gate6_ID_check import gate6_id_check
-from tests.gate7 import run_gate7
+from UI.tests.gate3_TR import run_gate4_termination_check
+from UI.tests.gate4_iul_check import run_gate5_iul_check
+from UI.tests.gate5_ID_check import gate6_id_check
+from UI.tests.gate6_pdo import run_gate7
 
 from tests.power_PT.relay import relay_on, relay_off
 from tests.CAN.can_commands import end_atp

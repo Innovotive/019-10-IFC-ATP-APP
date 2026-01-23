@@ -133,7 +133,7 @@ def _termination_off_all(log):
 # =========================================================
 # PUBLIC API — CALLED BY RUNNER (per slot)
 # =========================================================
-def run_gate4_termination_check(slot: int, log_cb=None) -> bool:
+def run_gate3_termination_check(slot: int, log_cb=None) -> bool:
     def log(msg: str):
         if log_cb:
             log_cb(msg)
