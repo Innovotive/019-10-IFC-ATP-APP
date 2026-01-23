@@ -1,0 +1,24 @@
+[INIT] Session opened
+=== ATP START — IDs: {1: 'efw', 2: 'gew', 3: 'g', 4: 'e'} ===
+[FILE] Log created: ATP_logs/ATP_efw_gew_g_e_2026-01-22_17-26-10.log
+[17:26:10] [UI] Setup COMPLETE — Quick Test enabled
+[17:26:14] [UI] Quick Test START
+[17:26:14] [QUICK] Start: power ON all RUPs, Gate1(1..4), then Gate2(1..4)
+[17:26:14] [QUICK] Powering ON all RUPs (1..4)
+[17:26:14] [HW] RUP1: relay ON
+[17:26:15] [HW] RUP2: relay ON
+[17:26:17] [HW] RUP3: relay ON
+[17:26:18] [HW] RUP4: relay ON
+[17:26:19] [HW] Selected slot 1: CAN target set (ID pins kept consistent)
+[17:26:19] [GATE1] RUP1 running...
+[17:26:20] [HW] Selected slot 2: CAN target set (ID pins kept consistent)
+[17:26:20] [GATE1] RUP2 running...
+[17:26:21] [HW] Selected slot 3: CAN target set (ID pins kept consistent)
+[17:26:21] [GATE1] RUP3 running...
+[17:26:23] [HW] Selected slot 4: CAN target set (ID pins kept consistent)
+[17:26:23] [GATE1] RUP4 running...
+[17:26:24] [QUICK] Gate1 complete. Moving to Gate2...
+[17:26:24] [HW] Selected slot 1: CAN target set (ID pins kept consistent)
+[17:26:24] [GATE2] RUP1 running...
+[17:26:37] [HW] Selected slot 2: CAN target set (ID pins kept consistent)
+[17:26:37] [GATE2] RUP2 running...

@@ -9,6 +9,17 @@ from PyQt5.QtWidgets import (
 # SLOT WIDGET (UI ONLY)
 # ======================================================================
 class SlotWidget(QWidget):
+    # Gate number -> Gate name (UI-only labels)
+    GATE_NAMES = {
+        1: "Power Pass-Through Voltage",
+        2: "CAN-Bus Pass-Through",
+        3: "CAN Communication Check",
+        4: "CAN Termination Resistance Check",
+        5: "In-Use Light Check",
+        6: "ID-Pins Functional Test",
+        7: "USB-C Power Delivery / Load Regulation",
+    }
+
     def __init__(self, slot_index, color):
         super().__init__()
         self.slot_index = slot_index
@@ -57,7 +68,18 @@ class SlotWidget(QWidget):
         self.status.setText(f"Status: {txt}")
 
     def set_gate(self, g):
-        self.gate.setText("Gate: ---" if g == 0 else f"Gate: {g}")
+        """
+        Displays:
+          - Gate: --- (when g == 0)
+          - Gate <n>: <name> (when g in 1..7)
+        """
+        if g == 0:
+            self.gate.setText("Gate: ---")
+            self.progress.setValue(0)
+            return
+
+        name = self.GATE_NAMES.get(g, "Unknown Gate")
+        self.gate.setText(f"Gate {g}: {name}")
         self.progress.setValue(g)
 
 

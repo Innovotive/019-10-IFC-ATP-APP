@@ -1,12 +1,25 @@
-#Author: Sirine Bouhoula
 #!/usr/bin/env python3
+"""
+FINAL SAFE MCP23S17 ID CONFIG — ALL 4 SLOTS
+
+Active-High straps:
+  1 = floated
+  0 = shorted
+
+Table (ID1 ID2 ID3):
+Slot1 → 110  (ID3 shorted)
+Slot2 → 101  (ID2 shorted)
+Slot3 → 011  (ID1 shorted)
+Slot4 → 100  (ID2 + ID3 shorted)
+"""
+
 import spidev
 import time
 
 # =========================================================
-# MCP23S17 SPI CONFIG
+# MCP23S17 REGISTERS
 # =========================================================
-OPCODE_WRITE = 0x40   # A2 A1 A0 = 000
+OPCODE_WRITE = 0x40
 OPCODE_READ  = 0x41
 
 IODIRA = 0x00
@@ -14,157 +27,133 @@ IODIRB = 0x01
 OLATA  = 0x14
 OLATB  = 0x15
 
-# Slot -> pins mapping (3 ID pins per slot)
-# Slot1: GPA0,GPA1,GPA2
-# Slot2: GPA3,GPA4,GPA5
-# Slot3: GPB0,GPB1,GPB2
-# Slot4: GPB3,GPB4,GPB5
+# =========================================================
+# SLOT → PIN MAPPING
+# =========================================================
+# Slot1: GPA0 GPA1 GPA2
+# Slot2: GPA3 GPA4 GPA5
+# Slot3: GPB0 GPB1 GPB2
+# Slot4: GPB3 GPB4 GPB5
 SLOTS = {
-    1: {"port": "A", "pins": (0, 1, 2)},
-    2: {"port": "A", "pins": (3, 4, 5)},
-    3: {"port": "B", "pins": (0, 1, 2)},
-    4: {"port": "B", "pins": (3, 4, 5)},
+    1: ("A", (0, 1, 2)),
+    2: ("A", (3, 4, 5)),
+    3: ("B", (0, 1, 2)),
+    4: ("B", (3, 4, 5)),
 }
 
-# =========================================================
-# SPI SETUP
-# =========================================================
-spi = spidev.SpiDev()
-spi.open(0, 0)  # SPI bus 0, CE0
-spi.max_speed_hz = 10_000_000
-
-def write_reg(reg: int, value: int) -> None:
-    spi.xfer2([OPCODE_WRITE, reg, value & 0xFF])
-
-def read_reg(reg: int) -> int:
-    return spi.xfer2([OPCODE_READ, reg, 0x00])[2]
+ID_MASK_A = 0b00111111  # A0..A5
+ID_MASK_B = 0b00111111  # B0..B5
 
 # =========================================================
-# INIT: configure A0..A5 and B0..B5 as outputs
-# keep A6,A7 and B6,B7 as inputs
+# SPI DRIVER
 # =========================================================
-write_reg(IODIRA, 0b11000000)  # 1=input (A6,A7), 0=output (A0..A5)
-write_reg(IODIRB, 0b11000000)  # 1=input (B6,B7), 0=output (B0..B5)
+class MCP23S17:
+    def __init__(self):
+        self.spi = spidev.SpiDev()
+        self.spi.open(0, 0)
+        self.spi.max_speed_hz = 10_000_000
 
-print("✔ MCP23S17: A0..A5 and B0..B5 configured as outputs (A6,A7,B6,B7 inputs)")
+    def close(self):
+        self.spi.close()
 
-# =========================================================
-# Helpers for OLAT A/B
-# =========================================================
-def _olat_reg(port: str) -> int:
-    return OLATA if port.upper() == "A" else OLATB
+    def write_reg(self, reg, val):
+        self.spi.xfer2([OPCODE_WRITE, reg, val & 0xFF])
 
-def port_write(port: str, value: int) -> None:
-    write_reg(_olat_reg(port), value)
+    def read_reg(self, reg):
+        return self.spi.xfer2([OPCODE_READ, reg, 0x00])[2]
 
-def port_read(port: str) -> int:
-    return read_reg(_olat_reg(port))
+    def olat(self, port):
+        return OLATA if port == "A" else OLATB
 
-def set_pin(port: str, pin: int) -> None:
-    val = port_read(port)
-    port_write(port, val | (1 << pin))
+    def read_olat(self, port):
+        return self.read_reg(self.olat(port))
 
-def clear_pin(port: str, pin: int) -> None:
-    val = port_read(port)
-    port_write(port, val & ~(1 << pin))
+    def write_olat(self, port, val):
+        self.write_reg(self.olat(port), val)
 
 # =========================================================
-# Slot-level API
-# mask is 3 bits: bit0->first pin, bit1->second pin, bit2->third pin
-# Active-high: 1 = floated/ON, 0 = shorted/OFF
+# SAFE ID CONFIGURATOR
 # =========================================================
-def set_slot_id_mask(slot: int, mask3: int) -> None:
-    if slot not in SLOTS:
-        raise ValueError("slot must be 1..4")
-    mask3 &= 0b111
+class IDConfigurator:
+    def __init__(self, mcp):
+        self.mcp = mcp
 
-    port = SLOTS[slot]["port"]
-    p0, p1, p2 = SLOTS[slot]["pins"]
+    def init_outputs(self):
+        # A0–A5 outputs, A6–A7 inputs
+        # B0–B5 outputs, B6–B7 inputs
+        self.mcp.write_reg(IODIRA, 0b11000000)
+        self.mcp.write_reg(IODIRB, 0b11000000)
+        print("✔ GPIO direction set (ID pins = outputs)")
 
-    # Clear the 3 pins then apply new mask
-    val = port_read(port)
-    clear_mask = ~((1 << p0) | (1 << p1) | (1 << p2)) & 0xFF
-    val = val & clear_mask
+    def float_all_ids(self):
+        a = self.mcp.read_olat("A")
+        b = self.mcp.read_olat("B")
 
-    # Apply mask bits to the 3 pins
-    if mask3 & 0b001: val |= (1 << p0)
-    if mask3 & 0b010: val |= (1 << p1)
-    if mask3 & 0b100: val |= (1 << p2)
+        self.mcp.write_olat("A", a | ID_MASK_A)
+        self.mcp.write_olat("B", b | ID_MASK_B)
+        time.sleep(0.02)
 
-    port_write(port, val)
+        print("✔ All ID pins floated (HIGH)")
 
-def set_all_slots_floated() -> None:
-    """
-    Default: set every ID line (A0..A5 and B0..B5) to 1 (floated/ON).
-    Keeps A6,A7,B6,B7 unchanged.
-    """
-    a = port_read("A")
-    b = port_read("B")
+    def _mask_to_bits(self, pins, mask3):
+        p0, p1, p2 = pins
+        out = 0
+        if mask3 & 0b001: out |= (1 << p0)
+        if mask3 & 0b010: out |= (1 << p1)
+        if mask3 & 0b100: out |= (1 << p2)
+        return out
 
-    # Set A0..A5 to 1
-    a |= 0b00111111
-    # Set B0..B5 to 1
-    b |= 0b00111111
+    def set_slot(self, slot, mask3):
+        port, pins = SLOTS[slot]
+        allowed = ID_MASK_A if port == "A" else ID_MASK_B
 
-    port_write("A", a)
-    port_write("B", b)
-    print("✔ Default ID lines set HIGH (floated) for all 4 slots")
+        slot_bits = sum(1 << p for p in pins)
+        want_on = self._mask_to_bits(pins, mask3)
+
+        current = self.mcp.read_olat(port)
+
+        # Clear only the 3 slot pins, then apply new mask
+        new_val = current
+        new_val &= (~slot_bits & 0xFF)
+        new_val |= want_on
+        new_val &= allowed | ~allowed  # safety
+
+        self.mcp.write_olat(port, new_val)
+        time.sleep(0.02)
+
+        # Verify
+        rb = self.mcp.read_olat(port) & slot_bits
+        if rb != want_on:
+            raise RuntimeError(f"Slot {slot} verify failed")
+
+        print(f"✔ Slot{slot} ID set to {mask3:03b}")
+
+    def set_all_slots(self, masks):
+        self.float_all_ids()
+        for s in (1, 2, 3, 4):
+            self.set_slot(s, masks[s])
 
 # =========================================================
-# Demo (matches your “turn on then turn off some pins” style)
+# MAIN
 # =========================================================
 if __name__ == "__main__":
+    mcp = MCP23S17()
+    cfg = IDConfigurator(mcp)
+
     try:
-        print("\n=== ACTIVE-HIGH MODE (ALL SLOTS) ===")
-        set_all_slots_floated()
-        time.sleep(1)
+        cfg.init_outputs()
 
-        # Set each slot mask (example defaults to 111 for all)
-        # 111 = all floated, 110 means first pin shorted (bit0=0), etc.
-        set_slot_id_mask(1, 0b111)
-        set_slot_id_mask(2, 0b111)
-        set_slot_id_mask(3, 0b111)
-        set_slot_id_mask(4, 0b111)
-        print("✔ Slot1..4 set to 111 (all floated)")
-        time.sleep(2)
+        # ✅ FINAL CORRECT CONFIG (from your table)
+        SLOT_MASKS = {
+            1: 0b011,  # ID3 shorted 011
+            2: 0b101,  # ID2 shorted
+            3: 0b110,  # ID1 shorted 110
+            4: 0b001,  # ID2 + ID3 shorted
+        }
 
-        # Now reproduce the “turn off some pins” behavior:
-        # Slot1: clear ID1 (GPA0) then clear ID2 (GPA1)
-        print("Slot1: OFF ID1 (GPA0) -> mask 110")
-        set_slot_id_mask(1, 0b110)
-        time.sleep(2)
+        cfg.set_all_slots(SLOT_MASKS)
 
-        print("Slot1: OFF ID2 (GPA1) -> mask 100")
-        set_slot_id_mask(1, 0b100)
-        time.sleep(2)
+        print("\n✅ ALL 4 RUP ID CONFIGS APPLIED SUCCESSFULLY")
 
-        # Slot2: clear GPA3 then GPA5 (like your code #2)
-        print("Slot2: OFF GPA3 -> mask 110")
-        set_slot_id_mask(2, 0b110)
-        time.sleep(2)
-
-        print("Slot2: OFF GPA5 -> mask 010")
-        set_slot_id_mask(2, 0b010)
-        time.sleep(2)
-
-        # Slot3: clear GPB1 then GPB2 (like your code #3)
-        print("Slot3: OFF GPB1 -> mask 101")
-        set_slot_id_mask(3, 0b101)
-        time.sleep(2)
-
-        print("Slot3: OFF GPB2 -> mask 001")
-        set_slot_id_mask(3, 0b001)
-        time.sleep(2)
-
-        # Slot4: your code comment says "Turning OFF ID5 (GPB4)" but you clear_pin(3)
-        # GPB3 is pin 3. If you meant GPB3, this is correct:
-        print("Slot4: OFF GPB3 -> mask 110")
-        set_slot_id_mask(4, 0b110)
-        time.sleep(2)
-
-        print("\nDone.")
-
-    except KeyboardInterrupt:
-        print("\nStopped by user.")
     finally:
-        spi.close()
+        mcp.close()

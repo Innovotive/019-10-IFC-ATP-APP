@@ -11,6 +11,9 @@ IODIRB = 0x01
 OLATA  = 0x14
 OLATB  = 0x15
 
+ID_MASK_A = 0b00111111  # A0..A5
+ID_MASK_B = 0b00111111  # B0..B5
+
 spi = spidev.SpiDev()
 _initialized = False
 
@@ -31,8 +34,12 @@ def _ensure_spi_open():
         _initialized = True
 
 
+def _olat_reg(port: str) -> int:
+    return OLATA if port == "A" else OLATB
+
+
 # -----------------------------
-# Slot -> pins mapping (ABSOLUTE pins on each port)
+# Slot -> pins mapping
 # Each slot uses 3 pins in this order: [ID1, ID2, ID3]
 # -----------------------------
 SLOT_PINS = {
@@ -42,22 +49,13 @@ SLOT_PINS = {
     4: ("B", [3, 4, 5]),   # Slot4 -> GPB3,GPB4,GPB5
 }
 
-# -----------------------------
-# YOUR REAL WORKING PATTERNS (from manual scripts)
-# These are ABSOLUTE bit positions on the port (A or B).
-# -----------------------------
-SLOT_TO_SHORTS_ABS = {
-    1: (0, 1),   # Slot1: pull A0, A1 LOW
-    2: (3, 5),   # Slot2: pull A3, A5 LOW
-    3: (1, 2),   # Slot3: pull B1, B2 LOW
-    4: (3,),     # Slot4: pull B3 LOW  (comma matters!)
-}
-
 
 def init_id_pins_active_high() -> bool:
     """
-    Configure MCP so that A0..A5 and B0..B5 are OUTPUTS and default HIGH.
-    (Active-high logic: HIGH = not shorted, LOW = shorted)
+    Configure MCP so that A0..A5 and B0..B5 are OUTPUTS.
+    Active-high straps:
+      1 = floated (not shorted)
+      0 = shorted
     """
     try:
         _ensure_spi_open()
@@ -67,94 +65,142 @@ def init_id_pins_active_high() -> bool:
         # B0..B5 outputs, B6..B7 inputs
         write_reg(IODIRB, 0b11000000)
 
-        # Default all ID lines HIGH (only touch bits 0..5)
-        write_reg(OLATA, read_reg(OLATA) | 0b00111111)
-        write_reg(OLATB, read_reg(OLATB) | 0b00111111)
-
-        time.sleep(0.05)
         return True
-
     except Exception as e:
         print(f"[ID_INIT][ERROR] {e}")
         return False
 
 
-def _get_olat_reg(port: str) -> int:
-    return OLATA if port == "A" else OLATB
+def _read_slot_bits_from_port_val(port_val: int, pins) -> str:
+    id1 = (port_val >> pins[0]) & 1
+    id2 = (port_val >> pins[1]) & 1
+    id3 = (port_val >> pins[2]) & 1
+    return f"{id3}{id2}{id1}"
 
 
 def read_slot_bits(slot: int) -> str:
     """
     Return bits [ID3 ID2 ID1] for the given slot as string like '111'.
-    ID1 is the first pin in SLOT_PINS[slot], ID2 second, ID3 third.
     """
     port, pins = SLOT_PINS[slot]
-    reg = _get_olat_reg(port)
-    v = read_reg(reg)
-
-    id1 = (v >> pins[0]) & 1
-    id2 = (v >> pins[1]) & 1
-    id3 = (v >> pins[2]) & 1
-    return f"{id3}{id2}{id1}"
+    v = read_reg(_olat_reg(port))
+    return _read_slot_bits_from_port_val(v, pins)
 
 
-def set_slot_id_config(slot: int, settle_s: float = 0.05) -> bool:
+def _apply_slot_pattern_to_port_val(port_val: int, pins, bits_id3_id2_id1: str) -> int:
     """
-    Apply ID-pin pattern for a slot using ABSOLUTE pin shorts per port
-    (matches your manual scripts exactly).
-
-    Behavior:
-      - Ensure MCP is initialized
-      - Force ALL A0..A5 and B0..B5 HIGH (safe default)
-      - Then drive only the pins listed in SLOT_TO_SHORTS_ABS[slot] LOW
-        on the appropriate port.
+    Apply a 3-bit pattern (string 'ID3ID2ID1') to the 3 pins [ID1, ID2, ID3].
     """
-    if slot not in SLOT_PINS:
-        raise ValueError(f"Invalid slot: {slot}")
+    if len(bits_id3_id2_id1) != 3 or any(c not in "01" for c in bits_id3_id2_id1):
+        raise ValueError(f"Invalid bits '{bits_id3_id2_id1}', expected like '110'")
 
+    id3 = int(bits_id3_id2_id1[0])
+    id2 = int(bits_id3_id2_id1[1])
+    id1 = int(bits_id3_id2_id1[2])
+
+    p_id1, p_id2, p_id3 = pins
+
+    # Clear the 3 pins first
+    port_val &= ~(1 << p_id1)
+    port_val &= ~(1 << p_id2)
+    port_val &= ~(1 << p_id3)
+
+    # Set according to pattern
+    if id1: port_val |= (1 << p_id1)
+    if id2: port_val |= (1 << p_id2)
+    if id3: port_val |= (1 << p_id3)
+
+    return port_val & 0xFF
+
+
+def set_all_slots_id_configs(
+    slot_bits_map: dict,
+    settle_s: float = 0.05,
+    verify: bool = True
+) -> bool:
+    """
+    Set ID pins for ALL 4 slots in one shot (one write to OLATA + one write to OLATB).
+
+    slot_bits_map format:
+        {
+          1: "110",  # (ID3 ID2 ID1)
+          2: "101",
+          3: "011",
+          4: "100",
+        }
+
+    This matches your working manual approach:
+      - float everything HIGH first
+      - then apply each slot pattern
+      - write once per port
+    """
     try:
         _ensure_spi_open()
-        init_id_pins_active_high()
+        if not init_id_pins_active_high():
+            return False
 
-        port, _slot_pins = SLOT_PINS[slot]
-        shorts_abs = SLOT_TO_SHORTS_ABS.get(slot, ())
+        # Start from current OLAT values, but force ID pins HIGH (safe float)
+        a = read_reg(OLATA)
+        b = read_reg(OLATB)
+        a = (a | ID_MASK_A) & 0xFF
+        b = (b | ID_MASK_B) & 0xFF
 
-        # Validate shorts are ABS pins 0..5
-        for p in shorts_abs:
-            if p not in (0, 1, 2, 3, 4, 5):
-                raise ValueError(f"SLOT_TO_SHORTS_ABS[{slot}] invalid pin {p} (must be 0..5)")
+        # Apply patterns for each slot to the correct port value
+        for slot in (1, 2, 3, 4):
+            if slot not in slot_bits_map:
+                raise ValueError(f"slot_bits_map missing slot {slot}")
 
-        reg = _get_olat_reg(port)
-        v = read_reg(reg)
+            bits = slot_bits_map[slot]
+            port, pins = SLOT_PINS[slot]
+            if port == "A":
+                a = _apply_slot_pattern_to_port_val(a, pins, bits)
+            else:
+                b = _apply_slot_pattern_to_port_val(b, pins, bits)
 
-        # Force bits 0..5 HIGH on this port first
-        v |= 0b00111111
-
-        # Drive selected ABS pins LOW
-        for p in shorts_abs:
-            v &= ~(1 << p)
-
-        write_reg(reg, v)
+        # Write once per port (the “same time” behavior you want)
+        write_reg(OLATA, a)
+        write_reg(OLATB, b)
         time.sleep(settle_s)
 
-        print(f"[ID_CFG] Slot{slot}: port={port} shorts_abs={list(shorts_abs)} -> now={read_slot_bits(slot)}")
+        if verify:
+            ra = read_reg(OLATA)
+            rb = read_reg(OLATB)
+            for slot in (1, 2, 3, 4):
+                want = slot_bits_map[slot]
+                port, pins = SLOT_PINS[slot]
+                got = _read_slot_bits_from_port_val(ra if port == "A" else rb, pins)
+                if got != want:
+                    raise RuntimeError(f"Verify failed slot{slot}: want={want} got={got}")
+
+        print(f"[ID_ALL] OLATA=0b{a:08b} (0x{a:02X})  OLATB=0b{b:08b} (0x{b:02X})")
+        for s in (1, 2, 3, 4):
+            print(f"[ID_ALL] Slot{s} -> {read_slot_bits(s)}")
+
         return True
 
     except Exception as e:
-        print(f"[ID_CFG][ERROR] Slot{slot}: {e}")
+        print(f"[ID_ALL][ERROR] {e}")
         return False
 
 
 def init_id_pins_full_config(settle_s: float = 0.05) -> bool:
     """
-    Wrapper:
-      1) init MCP outputs
-      2) apply per-slot config for all slots (not just all-high)
+    Your "full config" wrapper (all 4 slots).
+    Put your final desired patterns here.
     """
-    ok = bool(init_id_pins_active_high())
-    for s in (1, 2, 3, 4):
-        ok &= bool(set_slot_id_config(s, settle_s=settle_s))
-    return bool(ok)
+    # Put YOUR FINAL TABLE here as bits "ID3ID2ID1"
+    # Example from your comment/table:
+    # Slot1 → 110 (ID3 shorted)
+    # Slot2 → 101 (ID2 shorted)
+    # Slot3 → 011 (ID1 shorted)
+    # Slot4 → 100 (ID2 + ID3 shorted)
+    slot_bits_map = {
+        1: "110",
+        2: "101",
+        3: "011",
+        4: "100",
+    }
+    return bool(set_all_slots_id_configs(slot_bits_map, settle_s=settle_s, verify=True))
 
 
 def debug_dump_id_regs(tag: str = "") -> None:

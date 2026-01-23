@@ -9,25 +9,24 @@ POST_READ_DELAY_S = 1
 RETRY_DELAY_S = 0.5
 MAX_ATTEMPTS = 3
 
-# ✅ expected “ID config” per slot (your desired configs)
+# What you care about now (your table)
 EXPECTED_PER_SLOT = {
-    1: 0x06,  # slot1 0x06
-    2: 0x05,  # slot2 0x03
-    3: 0x03,  # slot3
-    4: 0x04,  # slot4
+    1: 0x06,  # ID3 shorted -> 110
+    2: 0x05,  # ID2 shorted -> 101
+    3: 0x03,  # ID1 shorted -> 011
+    4: 0x04,  # ID2+ID3 shorted -> 100
 }
 
-# optional: accept floating as warning-pass if you want
-PASS_WEAK_FLOAT = 0x07
-
+#new fw sends id10 if there is an issue with the wiring of id pins
+PASS_WEAK_FLOAT = 0x10  # optional: accept floating as warning-pass 
 
 def gate2_can_check(slot: int) -> bool:
-    expected = EXPECTED_PER_SLOT.get(slot, None)
+    expected = EXPECTED_PER_SLOT.get(slot)
     if expected is None:
         raise ValueError(f"No expected ID config for slot {slot}")
 
     print("\n========== GATE 2 ==========")
-    print(f"[GATE2] Slot={slot} expected=0x{expected:02X}")
+    print(f"[GATE2] Slot={slot} expected=0x{expected:02X} ({IDPINS_MAP.get(expected)})")
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         print(f"[GATE2] Attempt {attempt}/{MAX_ATTEMPTS}")
@@ -40,10 +39,11 @@ def gate2_can_check(slot: int) -> bool:
         read_id_pins_request()
         time.sleep(POST_READ_DELAY_S)
 
-        val = wait_for_idpins(TIMEOUT_S)
+        # ✅ Improved: only accept the expected value (or float if allowed)
+        val = wait_for_idpins(TIMEOUT_S, expected=expected, accept_float=True)
 
         if val is None:
-            print("[GATE2][WARN] No ID-pins response")
+            print("[GATE2][WARN] No valid ID-pins response")
             if attempt < MAX_ATTEMPTS:
                 time.sleep(RETRY_DELAY_S)
                 continue
@@ -51,7 +51,7 @@ def gate2_can_check(slot: int) -> bool:
             return False
 
         desc = IDPINS_MAP.get(val, "UNKNOWN")
-        print(f"🔎 ID-pins raw = 0x{val:02X} ({desc})")
+        print(f"🔎 ID-pins = 0x{val:02X} ({desc})")
 
         if val == expected:
             print("✅ GATE 2 PASS")

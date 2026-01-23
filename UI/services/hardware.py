@@ -16,8 +16,11 @@ from tests.power_PT.power_1_4 import (
     cleanup_gpio,
 )
 
-# ✅ ID-pins manager (MCP23S17) — absolute-per-slot patterns are inside id_pins_init.py
-from tests.ID.id_pins_init import init_id_pins_active_high, set_slot_id_config
+# ✅ NEW: ID-pins API (sets all 4 without resetting per-call)
+from tests.ID.id_pins_init import (
+    init_id_pins_full_config,
+    set_all_slots_id_configs,
+)
 
 # ✅ CAN target selection (per-slot TX arbitration ID)
 from tests.CAN.can_commands import set_target_slot
@@ -28,23 +31,36 @@ class HardwareController:
     Hardware abstraction for:
       - Relays (power control)
       - Power detect
-      - Per-slot selection:
+      - Slot selection:
           * sets CAN target arbitration ID (slot->CAN_TX_ID)
-          * sets MCP23S17 ID-pin pattern for that slot
+          * ensures MCP23S17 ID-pin config is correct
 
     IMPORTANT:
-      - ID pins MUST be set BEFORE powering ON a RUP (boot/latch timing).
+      - ID pins must already be correct BEFORE powering ON a RUP.
     """
+
+    # Put your FINAL desired table here (bits are "ID3ID2ID1")
+    # Example:
+    # Slot1 → 110 (ID3 shorted)
+    # Slot2 → 101 (ID2 shorted)
+    # Slot3 → 011 (ID1 shorted)
+    # Slot4 → 100 (ID2 + ID3 shorted)
+    DEFAULT_SLOT_BITS = {
+        1: "110",
+        2: "101",
+        3: "011",
+        4: "100",
+    }
 
     def __init__(self, log_cb: Callable[[str], None]):
         self.log = log_cb
 
-        # Init MCP23S17 once at startup
+        # Init + apply ALL 4 slot configs once at startup
         try:
-            ok = bool(init_id_pins_active_high())
-            self.log("[HW] MCP23S17 init OK" if ok else "[HW][WARN] MCP23S17 init returned False")
+            ok = bool(init_id_pins_full_config())
+            self.log("[HW] MCP23S17 init + FULL ID config OK" if ok else "[HW][WARN] MCP23S17 full init returned False")
         except Exception as e:
-            self.log(f"[HW][WARN] MCP23S17 init failed: {e}")
+            self.log(f"[HW][WARN] MCP23S17 full init failed: {e}")
 
         # Default CAN target to slot 1
         try:
@@ -54,37 +70,41 @@ class HardwareController:
             self.log(f"[HW][WARN] Default CAN target set failed: {e}")
 
     # -------------------------
-    # ID PINS ONLY (for power-up timing)
+    # ID PINS (apply full config safely)
     # -------------------------
-    def _apply_id_only(self, slot: int) -> None:
-        ok = bool(set_slot_id_config(slot))
+    def _apply_all_id_configs(self) -> None:
+        ok = bool(set_all_slots_id_configs(self.DEFAULT_SLOT_BITS, verify=True))
         if not ok:
-            raise RuntimeError(f"set_slot_id_config({slot}) returned False")
+            raise RuntimeError("set_all_slots_id_configs returned False")
 
     # -------------------------
-    # SLOT SELECT (CAN + ID PINS)
+    # SLOT SELECT (CAN)
     # -------------------------
     def select_slot(self, slot: int) -> None:
         if slot not in (1, 2, 3, 4):
             raise ValueError(f"Invalid slot: {slot}")
 
+        # CAN target changes per slot
         set_target_slot(slot)
-        self._apply_id_only(slot)
 
-        self.log(f"[HW] Selected slot {slot}: CAN target + ID pins configured")
+        # Optional but safe: re-apply full ID config (does not break other slots)
+        # If you don't need to re-apply every time, you can remove this line.
+        self._apply_all_id_configs()
+
+        self.log(f"[HW] Selected slot {slot}: CAN target set (ID pins kept consistent)")
 
     # -------------------------
     # RELAYS
     # -------------------------
     def relay_on(self, slot: int) -> None:
         """
-        Set ID pins for this slot BEFORE powering it ON,
-        so the RUP boots/latches the correct ID config.
+        Ensure ID pins are correct BEFORE powering ON any RUP.
+        We apply the full table (safe), then power the requested slot.
         """
         if slot not in (1, 2, 3, 4):
             raise ValueError(f"Invalid slot: {slot}")
 
-        self._apply_id_only(slot)
+        self._apply_all_id_configs()
 
         if slot == 1:
             relay_on_rup1()

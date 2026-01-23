@@ -69,18 +69,17 @@ def all_ids_on():
 # TEST: TURN ON ONE BY ONE
 # =========================================================
 
-print("\n=== TURN ON ONE BY ONE ===")
 
-all_ids_off()
+all_ids_on()
 time.sleep(1)
 
-print("ID1 ON")
-id1_on()        # 001
-time.sleep(1)
+# print("ID1 ON")
+# id1_on()        # 001
+# time.sleep(1)
 
-print("ID2 ON")
-id2_on()        # 011
-time.sleep(1)
+# print("ID2 ON")
+# id2_on()        # 011
+# time.sleep(1)
 
 # print("ID3 ON")
 # id3_on()        # 111
@@ -95,5 +94,5 @@ time.sleep(1)
 # time.sleep(1)
 
 
-print("ID3 OFF")
-id3_off()       # 000
+# print("ID3 OFF")
+# id3_off()       # 000
