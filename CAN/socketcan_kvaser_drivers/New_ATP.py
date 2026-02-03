@@ -2,7 +2,7 @@ import can
 import time
 
 CHANNEL = "can0"
-CAN_ID = 0x001
+CAN_ID = 0x004
 
 ATP_COMMANDS = 0x07
 
@@ -69,20 +69,21 @@ if __name__ == "__main__":
     listen(1.5)
 """
     send_atp_command(START_ATP, "START_ATP")
-    #send_atp_command(END_ATP, "END_ATP")
+    # send_atp_command(END_ATP, "END_ATP")
     # Turn IUL ON GPIO Reads 0
-    #send_atp_command(IUL_ON, "IUL_ON")
+    # send_atp_command(IUL_ON, "IUL_ON")
     #time.sleep(2)
     #send_atp_command(IUL_OFF, "IUL_OFF")
-    
-    #send_atp_command(TERMINATION_ON , "TERMINATION_ON 83 ")
+    # send_atp_command(GUIDELIGHT_OFF, "GUIDELIGHT_OFF")
+
+    # send_atp_command(TERMINATION_ON , "TERMINATION_ON 83 ")
     #send_atp_command(TERMINATION_OFF , "TERMINATION_OFF ")
-    # send_atp_command(READ_ID_PINS_REQUEST, "READ_ID_PINS_REQUEST")
+    send_atp_command(READ_ID_PINS_REQUEST, "READ_ID_PINS_REQUEST")
     send_atp_command(POWER_TO_60W,"POWER_TO_60W")
     #send_atp_command(POWER_TO_45W,"POWER_TO_45W")
     #send_atp_command(POWER_TO_30W,"POWER_TO_30W") #12v doesnt appear on the menu
     #send_atp_command(POWER_TO_22_5W,"POWER_TO_22_5W")
-    #send_atp_command(POWER_TO_15W,"POWER_TO_15W")
+    # send_atp_command(POWER_TO_15W,"POWER_TO_15W")
     # time.sleep(2)
     # send_atp_command(POWER_REPORT_REQUEST,"POWER_REPORT_REQUEST")
     bus.shutdown()

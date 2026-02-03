@@ -179,19 +179,22 @@ if __name__ == "__main__":
         cfg.init_outputs()
 
         # ✅ FINAL CORRECT CONFIG (from your table)
-        # SLOT_MASKS = {
-        #     1: 0b110,
-        #     2: 0b101,
-        #     3: 0b011,
-        #     4: 0b100,
-        # }
-        SLOT_MASKS = {
-        1: 0b110,
-        2: 0b101,
-        3: 0b110,
-        4: 0b110,
+        SLOT_MASKS0 = {
+            1: 0b000,
+            2: 0b000,
+            3: 0b000,
+            4: 0b000,
         }
-
+    
+        # ✅ FINAL CORRECT CONFIG (from your table)
+        SLOT_MASKS = {
+            1: 0b110,
+            2: 0b101,
+            3: 0b011,
+            4: 0b100,
+        }
+    
+        cfg.set_all_slots(SLOT_MASKS0)
 
         cfg.set_all_slots(SLOT_MASKS)
 
