@@ -19,8 +19,8 @@ _CURRENT_TX_ID = 0x001  # will be updated by set_target_slot()
 SLOT_TO_CAN_ID = {
     1: 0x001,
     2: 0x002,
-    3: 0x003,
-    4: 0x004,
+    3: 0x000,
+    4: 0x003,
 }
 
 def set_target_slot(slot: int) -> None:

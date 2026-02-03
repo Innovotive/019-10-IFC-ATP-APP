@@ -85,9 +85,9 @@ time.sleep(1)
 # id3_on()        # 111
 # time.sleep(1)
 
-# print("ID1 OFF")
-# id1_off()       # 100
-# time.sleep(1)
+print("ID1 OFF")
+id1_off()       # 100
+time.sleep(1)
 
 # print("ID2 OFF")
 # id2_off()       # 101

@@ -16,11 +16,8 @@ from tests.power_PT.power_1_4 import (
     cleanup_gpio,
 )
 
-# ✅ NEW: ID-pins API (sets all 4 without resetting per-call)
-from tests.ID.id_pins_init import (
-    init_id_pins_full_config,
-    set_all_slots_id_configs,
-)
+# ✅ ID pins: set ONCE at startup (no verification, no re-apply)
+from tests.ID.id_pins_init import init_id_pins_full_config
 
 # ✅ CAN target selection (per-slot TX arbitration ID)
 from tests.CAN.can_commands import set_target_slot
@@ -31,38 +28,37 @@ class HardwareController:
     Hardware abstraction for:
       - Relays (power control)
       - Power detect
-      - Slot selection:
-          * sets CAN target arbitration ID (slot->CAN_TX_ID)
-          * ensures MCP23S17 ID-pin config is correct
+      - Per-slot CAN target selection
 
-    IMPORTANT:
-      - ID pins must already be correct BEFORE powering ON a RUP.
+    IMPORTANT DESIGN (as requested):
+      ✅ ID pins are configured ONCE at startup (all 4 slots)
+      ✅ We DO NOT read/verify/print ID bits in the app
+      ✅ We DO NOT re-apply ID configs per slot (that test happens later)
+      ✅ Before any relay ON, we ensure startup ID init succeeded
     """
-
-    # Put your FINAL desired table here (bits are "ID3ID2ID1")
-    # Example:
-    # Slot1 → 110 (ID3 shorted)
-    # Slot2 → 101 (ID2 shorted)
-    # Slot3 → 011 (ID1 shorted)
-    # Slot4 → 100 (ID2 + ID3 shorted)
-    DEFAULT_SLOT_BITS = {
-        1: "110",
-        2: "101",
-        3: "011",
-        4: "100",
-    }
 
     def __init__(self, log_cb: Callable[[str], None]):
         self.log = log_cb
 
-        # Init + apply ALL 4 slot configs once at startup
-        try:
-            ok = bool(init_id_pins_full_config())
-            self.log("[HW] MCP23S17 init + FULL ID config OK" if ok else "[HW][WARN] MCP23S17 full init returned False")
-        except Exception as e:
-            self.log(f"[HW][WARN] MCP23S17 full init failed: {e}")
+        # Track whether ID pins were configured successfully at startup
+        self._id_config_ok = False
 
-        # Default CAN target to slot 1
+        # -------------------------------------------------
+        # 1) Configure MCP23S17 outputs + apply all 4 ID configs ONCE
+        # -------------------------------------------------
+        try:
+            self._id_config_ok = bool(init_id_pins_full_config())
+            if self._id_config_ok:
+                self.log("[HW] MCP23S17 ID pins configured (startup, all 4 slots)")
+            else:
+                self.log("[HW][WARN] MCP23S17 ID pins config returned False (startup)")
+        except Exception as e:
+            self._id_config_ok = False
+            self.log(f"[HW][WARN] MCP23S17 ID pins config failed (startup): {e}")
+
+        # -------------------------------------------------
+        # 2) Default CAN target to slot 1
+        # -------------------------------------------------
         try:
             set_target_slot(1)
             self.log("[HW] Default CAN target set to slot 1 (TX_ID=0x001)")
@@ -70,41 +66,34 @@ class HardwareController:
             self.log(f"[HW][WARN] Default CAN target set failed: {e}")
 
     # -------------------------
-    # ID PINS (apply full config safely)
-    # -------------------------
-    def _apply_all_id_configs(self) -> None:
-        ok = bool(set_all_slots_id_configs(self.DEFAULT_SLOT_BITS, verify=True))
-        if not ok:
-            raise RuntimeError("set_all_slots_id_configs returned False")
-
-    # -------------------------
-    # SLOT SELECT (CAN)
+    # CAN TARGET ONLY
     # -------------------------
     def select_slot(self, slot: int) -> None:
+        """
+        Only sets the CAN target arbitration ID for the slot.
+        (ID pins are NOT touched here, by design.)
+        """
         if slot not in (1, 2, 3, 4):
             raise ValueError(f"Invalid slot: {slot}")
 
-        # CAN target changes per slot
         set_target_slot(slot)
-
-        # Optional but safe: re-apply full ID config (does not break other slots)
-        # If you don't need to re-apply every time, you can remove this line.
-        self._apply_all_id_configs()
-
-        self.log(f"[HW] Selected slot {slot}: CAN target set (ID pins kept consistent)")
+        self.log(f"[HW] Selected slot {slot}: CAN target set")
 
     # -------------------------
     # RELAYS
     # -------------------------
     def relay_on(self, slot: int) -> None:
         """
-        Ensure ID pins are correct BEFORE powering ON any RUP.
-        We apply the full table (safe), then power the requested slot.
+        Power ON one RUP relay.
+
+        Safety rule:
+          - If startup ID pin config failed, we refuse to power anything ON.
         """
         if slot not in (1, 2, 3, 4):
             raise ValueError(f"Invalid slot: {slot}")
 
-        self._apply_all_id_configs()
+        if not self._id_config_ok:
+            raise RuntimeError("Refusing relay ON because MCP23S17 ID init/config failed at startup")
 
         if slot == 1:
             relay_on_rup1()

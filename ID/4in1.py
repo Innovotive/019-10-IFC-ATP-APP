@@ -27,6 +27,10 @@ IODIRB = 0x01
 OLATA  = 0x14
 OLATB  = 0x15
 
+GPIOA  = 0x12
+GPIOB  = 0x13
+
+
 # =========================================================
 # SLOT → PIN MAPPING
 # =========================================================
@@ -51,7 +55,7 @@ class MCP23S17:
     def __init__(self):
         self.spi = spidev.SpiDev()
         self.spi.open(0, 0)
-        self.spi.max_speed_hz = 10_000_000
+        self.spi.max_speed_hz = 500_000
 
     def close(self):
         self.spi.close()
@@ -70,6 +74,27 @@ class MCP23S17:
 
     def write_olat(self, port, val):
         self.write_reg(self.olat(port), val)
+
+    def gpio(self, port):
+        return GPIOA if port == "A" else GPIOB
+
+    def read_gpio(self, port):
+        return self.read_reg(self.gpio(port))
+    
+    def dump_regs(mcp, tag=""):
+        iodra = mcp.read_reg(IODIRA)
+        iodrb = mcp.read_reg(IODIRB)
+        olata = mcp.read_reg(OLATA)
+        olatb = mcp.read_reg(OLATB)
+        gpioa = mcp.read_reg(GPIOA)
+        gpiob = mcp.read_reg(GPIOB)
+        print(
+            f"[{tag}] IODIRA={iodra:08b} IODIRB={iodrb:08b} "
+            f"OLATA={olata:08b} OLATB={olatb:08b} "
+            f"GPIOA={gpioa:08b} GPIOB={gpiob:08b}"
+        )
+
+
 
 # =========================================================
 # SAFE ID CONFIGURATOR
@@ -96,37 +121,47 @@ class IDConfigurator:
         print("✔ All ID pins floated (HIGH)")
 
     def _mask_to_bits(self, pins, mask3):
-        p0, p1, p2 = pins
+        # mask3 is written as (ID1 ID2 ID3), e.g. 110 means:
+        # ID1=1 -> p0 HIGH, ID2=1 -> p1 HIGH, ID3=0 -> p2 LOW
+        p0, p1, p2 = pins  # (ID1, ID2, ID3)
         out = 0
-        if mask3 & 0b001: out |= (1 << p0)
-        if mask3 & 0b010: out |= (1 << p1)
-        if mask3 & 0b100: out |= (1 << p2)
+        if mask3 & 0b100: out |= (1 << p0)  # MSB -> ID1
+        if mask3 & 0b010: out |= (1 << p1)  # mid -> ID2
+        if mask3 & 0b001: out |= (1 << p2)  # LSB -> ID3
         return out
 
     def set_slot(self, slot, mask3):
         port, pins = SLOTS[slot]
         allowed = ID_MASK_A if port == "A" else ID_MASK_B
 
-        slot_bits = sum(1 << p for p in pins)
-        want_on = self._mask_to_bits(pins, mask3)
+        slot_bits = sum(1 << p for p in pins) & 0xFF
+        want_on = self._mask_to_bits(pins, mask3) & 0xFF
+        want_on &= slot_bits
 
-        current = self.mcp.read_olat(port)
+        current = self.mcp.read_olat(port) & 0xFF
 
-        # Clear only the 3 slot pins, then apply new mask
-        new_val = current
-        new_val &= (~slot_bits & 0xFF)
-        new_val |= want_on
-        new_val &= allowed | ~allowed  # safety
+        # only change those 3 pins
+        new_val = (current & ~slot_bits) | want_on
+        new_val &= 0xFF
+
+        # safety: keep non-allowed bits unchanged
+        new_val = (current & ~allowed) | (new_val & allowed)
+        new_val &= 0xFF
 
         self.mcp.write_olat(port, new_val)
         time.sleep(0.02)
 
-        # Verify
-        rb = self.mcp.read_olat(port) & slot_bits
-        if rb != want_on:
-            raise RuntimeError(f"Slot {slot} verify failed")
+        rb_olat = self.mcp.read_olat(port) & slot_bits
+        if rb_olat != want_on:
+            rb_gpio = self.mcp.read_gpio(port) & slot_bits  # if you have it
+            raise RuntimeError(
+                f"Slot {slot} verify failed: want={want_on:08b} "
+                f"got_olat={rb_olat:08b} got_gpio={rb_gpio:08b} "
+                f"(slot_bits={slot_bits:08b}, current={current:08b}, new_val={new_val:08b})"
+            )
 
         print(f"✔ Slot{slot} ID set to {mask3:03b}")
+
 
     def set_all_slots(self, masks):
         self.float_all_ids()
@@ -144,12 +179,19 @@ if __name__ == "__main__":
         cfg.init_outputs()
 
         # ✅ FINAL CORRECT CONFIG (from your table)
+        # SLOT_MASKS = {
+        #     1: 0b110,
+        #     2: 0b101,
+        #     3: 0b011,
+        #     4: 0b100,
+        # }
         SLOT_MASKS = {
-            1: 0b011,  # ID3 shorted 011
-            2: 0b101,  # ID2 shorted
-            3: 0b110,  # ID1 shorted 110
-            4: 0b001,  # ID2 + ID3 shorted
+        1: 0b110,
+        2: 0b101,
+        3: 0b110,
+        4: 0b110,
         }
+
 
         cfg.set_all_slots(SLOT_MASKS)
 

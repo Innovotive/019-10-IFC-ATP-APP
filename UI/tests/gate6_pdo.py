@@ -1,43 +1,44 @@
-# tests/gate7.py
+# tests/gate6_pdo.py
 """
-GATE 7 — Power mode + reporting check (PM125 vs RUP), slot-aware
+=========================================================
+GATE 6 — Power mode + reporting check (PM125 vs RUP), slot-aware
+=========================================================
 
-Principle (kept):
+Principle:
 - PM125 path is switched via Acroname (physical)
 - RUP is addressed via CAN arbitration id (logical)
 - Returns (results_dict, logs_list)
 - Streams logs live into UI via log_cb
 
-Automation addition:
-- If brainstem/acroname_switch is NOT available in this python env,
-  automatically run Gate7 in the PM venv via subprocess (no manual activate).
+Automation:
+- If acroname/brainstem is NOT available in this python env,
+  automatically run Gate6 in the PM venv via subprocess (no manual activate).
 """
 
 import time
 import json
 import subprocess
 import can
-from typing import Dict, Any, List, Tuple, Optional, Callable
+from typing import Dict, Any, List, Tuple
 
 from tests.switch.pm125 import PM125
 from tests.CAN.can_bus import get_can_bus
-from tests.CAN.can_commands import set_target_slot, power_60w, power_15w, power_report_request
-
+from tests.CAN.can_commands import (
+    set_target_slot, power_60w, power_15w, power_report_request
+)
 
 # ==============================
 # SUBPROCESS (AUTO VENV) CONFIG
 # ==============================
 PM_VENV_PYTHON = "/home/raspberry/ATP/PM/acroname_env/bin/python"
-GATE7_VENV_SCRIPT = "/home/raspberry/ATP/UI/tests/gate7_venv_entry.py"
+GATE6_VENV_SCRIPT = "/home/raspberry/ATP/UI/tests/gate6_venv_entry.py"
 MARKER = "=== JSON_RESULT ==="
-
 
 # ==============================
 # CONFIG
 # ==============================
 POWER_TOL_PM = 0.3
 POWER_TOL_RUP = 0.3
-
 RUP_RESPONSE_ID = 0x065
 
 SLOT_TO_ACRONAME_PORT = {1: 0, 2: 1, 3: 2, 4: 3}
@@ -51,9 +52,8 @@ POWER_STEPS_60_MODE = [
 ]
 FINAL_15_MODE_STEP = {"name": "15W_AFTER_RUP_SET_15W", "desired_mv": 5000, "target_power_w": 15}
 
-
 # ==============================
-# INTERNAL HELPERS (unchanged)
+# INTERNAL HELPERS (your logic)
 # ==============================
 def _measured_power_w(stat: dict) -> float:
     v = stat.get("voltage_mv", 0)
@@ -163,11 +163,11 @@ def _run_single_pm_step(pm: PM125, can_bus: can.BusABC, step: dict, log, fail_fn
     }
 
     log("--------------------------------------------------")
-    log(f"[GATE7] STEP {name} | desired {desired_mv/1000:.1f}V | target {target_w}W")
+    log(f"[GATE6] STEP {name} | desired {desired_mv/1000:.1f}V | target {target_w}W")
 
-    log("[GATE7] PM125: negotiating voltage...")
+    log("[GATE6] PM125: negotiating voltage...")
     ok_v, _, constat = _negotiate_voltage(pm, desired_mv, log)
-    log(f"[GATE7] FINAL CONSTAT: {constat}")
+    log(f"[GATE6] FINAL CONSTAT: {constat}")
 
     if not ok_v:
         return fail_fn(name, step_res, f"Could not negotiate {desired_mv/1000:.1f}V")
@@ -179,10 +179,10 @@ def _run_single_pm_step(pm: PM125, can_bus: can.BusABC, step: dict, log, fail_fn
     target_i_ma = int((target_w / v_v) * 1000)
 
     if target_i_ma > max_i_ma:
-        log(f"[GATE7] Clamp: target {target_i_ma} mA > max {max_i_ma} mA")
+        log(f"[GATE6] Clamp: target {target_i_ma} mA > max {max_i_ma} mA")
         target_i_ma = max_i_ma
 
-    log(f"[GATE7] PM125: ramp current to {target_i_ma} mA")
+    log(f"[GATE6] PM125: ramp current to {target_i_ma} mA")
     _ramp_current(pm, target_i_ma, log, step_ma=250, delay_s=1.0)
 
     ok_pm, pm_w, low, high, _ = _wait_until_pm_window(pm, target_w, log, timeout_s=20, poll_s=1.0)
@@ -192,9 +192,9 @@ def _run_single_pm_step(pm: PM125, can_bus: can.BusABC, step: dict, log, fail_fn
         return fail_fn(name, step_res, f"PM power {pm_w:.2f}W not in [{low:.2f},{high:.2f}]")
 
     step_res["pm_ok"] = True
-    log(f"[GATE7] PM PASS — {pm_w:.2f}W in [{low:.2f},{high:.2f}]")
+    log(f"[GATE6] PM PASS — {pm_w:.2f}W in [{low:.2f},{high:.2f}]")
 
-    log("[GATE7] RUP: POWER_REPORT_REQUEST (0xA2)")
+    log("[GATE6] RUP: POWER_REPORT_REQUEST")
     _flush_can(can_bus, 0.25)
     power_report_request()
 
@@ -204,7 +204,7 @@ def _run_single_pm_step(pm: PM125, can_bus: can.BusABC, step: dict, log, fail_fn
 
     step_res["rup_w"] = rup_w
     step_res["rup_ok"] = True
-    log(f"[GATE7] RUP reports {rup_w}W (raw0=0x{raw0:02X}, data={[f'0x{b:02X}' for b in raw_data]})")
+    log(f"[GATE6] RUP reports {rup_w}W (raw0=0x{raw0:02X}, data={[f'0x{b:02X}' for b in raw_data]})")
 
     rup_ok, rlow, rhigh = _window(float(rup_w), float(target_w), POWER_TOL_RUP)
     step_res["rup_vs_target_low"] = rlow
@@ -213,14 +213,13 @@ def _run_single_pm_step(pm: PM125, can_bus: can.BusABC, step: dict, log, fail_fn
     if not rup_ok:
         return fail_fn(name, step_res, f"RUP {rup_w}W NOT in [{rlow:.1f},{rhigh:.1f}] for TARGET {target_w}W")
 
-    log(f"[GATE7] RUP PASS — {rup_w}W in [{rlow:.1f},{rhigh:.1f}] for TARGET {target_w}W")
+    log(f"[GATE6] RUP PASS — {rup_w}W in [{rlow:.1f},{rhigh:.1f}] for TARGET {target_w}W")
 
-    log("[GATE7] Reset PM125 current to 0 mA")
+    log("[GATE6] Reset PM125 current to 0 mA")
     pm.set_current(0)
     time.sleep(2)
 
     return step_res
-
 
 # ==============================
 # SUBPROCESS FALLBACK RUNNER
@@ -229,15 +228,14 @@ def _run_gate6_in_venv(slot: int, log) -> Tuple[Dict[str, Any], List[str]]:
     logs: List[str] = []
     results: Dict[str, Any] = {"pass": False, "slot": slot, "failed_step": "VENV", "steps": []}
 
-    cmd = [PM_VENV_PYTHON, "-u", GATE7_VENV_SCRIPT, "--slot", str(slot)]
-    log(f"[GATE7] brainstem not available -> running in venv subprocess")
-    log(f"[GATE7] CMD: {' '.join(cmd)}")
+    cmd = [PM_VENV_PYTHON, "-u", GATE6_VENV_SCRIPT, "--slot", str(slot)]
+    log(f"[GATE6] brainstem not available -> running in venv subprocess")
+    log(f"[GATE6] CMD: {' '.join(cmd)}")
 
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     except Exception as e:
-        log(f"[GATE7][ERROR] cannot start venv subprocess: {e}")
-        results["pass"] = False
+        log(f"[GATE6][ERROR] cannot start venv subprocess: {e}")
         return results, logs
 
     full_lines: List[str] = []
@@ -250,8 +248,7 @@ def _run_gate6_in_venv(slot: int, log) -> Tuple[Dict[str, Any], List[str]]:
     proc.wait()
 
     if proc.returncode != 0:
-        log(f"[GATE7][FAIL] venv subprocess returncode={proc.returncode}")
-        results["pass"] = False
+        log(f"[GATE6][FAIL] venv subprocess returncode={proc.returncode}")
         return results, logs
 
     try:
@@ -261,21 +258,20 @@ def _run_gate6_in_venv(slot: int, log) -> Tuple[Dict[str, Any], List[str]]:
 
         json_text = full_text.split(MARKER, 1)[1].strip()
         parsed = json.loads(json_text)
-        # parsed should be {"pass": true, ...}
+
         if isinstance(parsed, dict):
             results.update(parsed)
             results["pass"] = bool(results.get("pass", False))
         else:
             results["pass"] = False
 
-        log(f"[GATE7] Parsed venv result: pass={results['pass']}")
+        log(f"[GATE6] Parsed venv result: pass={results['pass']}")
         return results, logs
 
     except Exception as e:
-        log(f"[GATE7][ERROR] venv JSON parse failed: {e}")
+        log(f"[GATE6][ERROR] venv JSON parse failed: {e}")
         results["pass"] = False
         return results, logs
-
 
 # =========================================================
 # PUBLIC API — DETAILED (returns results + logs)
@@ -295,51 +291,50 @@ def run_gate6(slot: int, log_cb=None):
         step_res["reason"] = reason
         results["steps"].append(step_res)
         results["failed_step"] = step_name
-        log(f"[GATE7][FAIL] {reason}")
+        log(f"[GATE6][FAIL] {reason}")
         return results, logs
 
-    # ✅ Try importing Acroname/brainstem path. If not available, use venv subprocess.
+    # Try importing Acroname/brainstem path. If not available, use venv subprocess.
     try:
         from tests.switch.acroname_switch import select_rup
-        _has_acroname = True
+        has_acroname = True
     except Exception:
-        _has_acroname = False
+        has_acroname = False
+        select_rup = None  # type: ignore
 
-    if not _has_acroname:
-        # Run a dedicated venv entry script that contains the same logic in the venv
-        return _run_gate7_in_venv(slot, log)
+    if not has_acroname:
+        return _run_gate6_in_venv(slot, log)
 
-    # -------- normal in-process path (your original principle) --------
     can_bus = None
     pm = None
 
     try:
         if slot not in SLOT_TO_ACRONAME_PORT:
-            raise ValueError(f"[GATE7] Invalid slot={slot} (expected 1..4)")
+            raise ValueError(f"[GATE6] Invalid slot={slot} (expected 1..4)")
 
         port = SLOT_TO_ACRONAME_PORT[slot]
-        log(f"[GATE7] Starting Gate 7 power check for Slot {slot} (Acroname port {port})")
+        log(f"[GATE6] Starting Gate 6 power check for Slot {slot} (Acroname port {port})")
 
         set_target_slot(slot)
 
-        log(f"[GATE7] Acroname: select_rup(port={port})")
-        select_rup(port)
+        log(f"[GATE6] Acroname: select_rup(port={port})")
+        select_rup(port)  # type: ignore
         time.sleep(2.0)
 
         can_bus = get_can_bus()
         pm = PM125("/dev/ttyUSB0")
-        log("[GATE7] PM125 connected")
+        log("[GATE6] PM125 connected")
 
         try:
-            log("[GATE7] PM125 clean start: set 5V and 0mA")
+            log("[GATE6] PM125 clean start: set 5V and 0mA")
             pm.set_current(0)
             time.sleep(0.3)
             pm.set_voltage(0, 5000)
             time.sleep(2.0)
         except Exception as e:
-            log(f"[GATE7][WARN] PM125 clean start failed: {e}")
+            log(f"[GATE6][WARN] PM125 clean start failed: {e}")
 
-        log("[GATE7] RUP: sending POWER_TO_60W (once at start)")
+        log("[GATE6] RUP: sending POWER_TO_60W (once at start)")
         set_target_slot(slot)
         power_60w()
         time.sleep(2.0)
@@ -351,10 +346,10 @@ def run_gate6(slot: int, log_cb=None):
             results["steps"].append(out)
 
         log("==================================================")
-        log("[GATE7] FINAL: switch RUP to 15W, pull 15W again, read RUP report")
+        log("[GATE6] FINAL: switch RUP to 15W, pull 15W again, read RUP report")
         log("==================================================")
 
-        log("[GATE7] RUP: sending POWER_TO_15W")
+        log("[GATE6] RUP: sending POWER_TO_15W")
         set_target_slot(slot)
         power_15w()
         time.sleep(1.5)
@@ -365,11 +360,11 @@ def run_gate6(slot: int, log_cb=None):
         results["steps"].append(out)
 
         results["pass"] = True
-        log("[GATE7] PASS — All steps OK")
+        log("[GATE6] PASS — All steps OK")
         return results, logs
 
     except Exception as e:
-        log(f"[GATE7][ERROR] Exception: {e}")
+        log(f"[GATE6][ERROR] Exception: {e}")
         results["pass"] = False
         results["failed_step"] = results["failed_step"] or "EXCEPTION"
         return results, logs
@@ -391,7 +386,6 @@ def run_gate6(slot: int, log_cb=None):
         except Exception:
             pass
 
-
-def run_gate7_bool(slot: int, log_cb=None) -> bool:
-    results, _logs = run_gate7(slot=slot, log_cb=log_cb)
+def run_gate6_bool(slot: int, log_cb=None) -> bool:
+    results, _logs = run_gate6(slot=slot, log_cb=log_cb)
     return bool(results.get("pass", False))

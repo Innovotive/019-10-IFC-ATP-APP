@@ -12,15 +12,15 @@ while True:
     
     
     # relay_22.off() 
-    # sleep(2)
+    # sleep(1)
 
     relay_27.off()  # relay On
-    sleep(2)
+    sleep(1)
     # relay_6.off()  # relay On
-    # sleep(2)
+    # sleep(1)
 
     # relay_13.off()  # relay On
-    # sleep(2)
+    # sleep(1)
     # print("On RUP")
    
     #relay_CANH.off()  # relay Off

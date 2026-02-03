@@ -98,11 +98,12 @@ class Ui_MainWindow:
         self.title.setStyleSheet("font-size:18px; font-weight:bold")
         layout.addWidget(self.title)
 
+        # ✅ CHANGE: Quick Test is recommended, not mandatory
         self.instructions = QLabel(
             "Instructions:\n"
             "1) Click Start ATP\n"
             "2) Enter each RUP ID before inserting (IDs are not visible after insertion)\n"
-            "3) Run Quick Test (must PASS) then Full ATP"
+            "3) Run Quick Test (recommended) then Full ATP"
         )
         self.instructions.setWordWrap(True)
         self.instructions.setStyleSheet(

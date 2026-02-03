@@ -1,23 +1,21 @@
+# tests/gate3_TR.py
+#!/usr/bin/env python3
 """
-=========================================================
-GATE 4 – TERMINATION RESISTOR TEST (peak-based, addressed per slot)
-=========================================================
+GATE3 — TR test in ONE global sequence (ordered, timing-stable)
 
-Shared CAN bus + per-RUP CAN IDs:
-Phase A (baseline):
-- Force TERMINATION_OFF on ALL slots (addressed), retry if needed
-- Measure BASELINE OFF (peak metrics)
+What changed vs your version (timing fixes):
+- Adds TRANSIENT_DISCARD_S: we sample a window but IGNORE the first part (switching transient)
+- Separates timing into:
+    CMD_QUIET_S   : small pause right after CAN command (firmware/apply jitter)
+    SETTLE_S      : stabilize time BEFORE sampling
+    WINDOW_S      : total sampling window
+- Uses a single "measure_state" helper that always does: set TR -> quiet -> settle -> sample -> discard -> metric
+- Keeps keeper logic:
+    - Slots 1..3 tested with Slot4 as keeper ON
+    - Slot4 tested with Slot2 as keeper2 ON while Slot4 toggles
 
-Phase B (per slot):
-- For the requested slot:
-    - TERMINATION_ON (addressed) -> measure ON
-    - TERMINATION_OFF (addressed) -> measure OFF-return
-- PASS if BASELINE_OFF has higher peaks than ON by required deltas
-  and OFF-return looks like baseline again.
-
-Returns:
-- True  → PASS (for this slot)
-- False → FAIL (for this slot)
+Returns dict {1: bool, 2: bool, 3: bool, 4: bool}
+Does NOT abort if one slot fails.
 """
 
 import time
@@ -28,7 +26,7 @@ import lgpio
 from tests.CAN.can_commands import set_target_slot, termination_on, termination_off
 
 # ==============================
-# ADC + GPIO CONFIG (MCP3008)
+# ADC (MCP3008)
 # ==============================
 SPI_BUS = 0
 SPI_DEV = 0
@@ -39,29 +37,34 @@ GPIO_CHIP = 0
 
 VREF = 5.0
 ADC_MAX = 1023
-ADC_CH = 0   # CAN_H on CH0
+ADC_CH = 0
 
 # ==============================
-# TIMING / METRICS
+# TIMING (tuned for stability)
 # ==============================
-SETTLE_AFTER_CMD_S = 2.5
-WINDOW_S = 3.0
+CMD_QUIET_S = 0.20          # let RUP apply TR command / reduce immediate transient
+SETTLE_S = 1.20             # settle BEFORE sampling (shorter than your 2.5s)
+WINDOW_S = 3.00             # total sampling window
 FS_HZ = 500
-HIGH_THRESH_V = 2.8
-TOP_N = 20
 
-# PASS thresholds (relative; BASELINE_OFF should be higher than ON)
-MIN_VMAX_DELTA = 0.12
-MIN_TOPMEAN_DELTA = 0.08
+TRANSIENT_DISCARD_S = 0.50  # ignore first 0.5s of WINDOW (switching transient)
 
-# Baseline retries
-BASELINE_MAX_RETRIES = 2  # in addition to the first attempt
+# Metric: mean of samples above threshold (same as you, but on stable samples)
+PEAK_THRESH_V = 3.0
+
+# expected ranges (adjust if needed)
+LOW_EXPECT  = (2.45, 3.75)   # ~3.6V
+HIGH_EXPECT = (3.75, 4.05)   # ~3.8-3.9V
+
+KEEPER_SLOT = 4
+KEEPER2_SLOT = 2
 
 
-# ==============================
-# ADC HELPERS
-# ==============================
-def read_mcp3008(spi, h, channel: int):
+def log_default(msg: str):
+    print(msg)
+
+
+def _read_mcp3008(spi, h, channel: int) -> float:
     channel &= 0x07
     tx = [1, (8 + channel) << 4, 0]
 
@@ -70,224 +73,227 @@ def read_mcp3008(spi, h, channel: int):
     lgpio.gpio_write(h, CS_GPIO, 1)
 
     raw = ((rx[1] & 0x03) << 8) | rx[2]
-    volts = raw * VREF / ADC_MAX
-    return raw, volts
+    return raw * VREF / ADC_MAX
 
 
-def sample_can_h_window(spi, h, channel: int, window_s: float, fs_hz: int):
+def _sample_window(spi, h, channel: int, window_s: float, fs_hz: int):
     n = max(1, int(window_s * fs_hz))
     period = 1.0 / fs_hz
-
-    samples = []
+    out = []
     t_next = time.perf_counter()
-
     for _ in range(n):
-        _, v = read_mcp3008(spi, h, channel)
-        samples.append(v)
-
+        out.append(_read_mcp3008(spi, h, channel))
         t_next += period
-        sleep = t_next - time.perf_counter()
-        if sleep > 0:
-            time.sleep(sleep)
+        dt = t_next - time.perf_counter()
+        if dt > 0:
+            time.sleep(dt)
+    return out
 
-    return samples
+
+def _peak_mean(samples, thresh: float):
+    if not samples:
+        return None, 0, float("nan")
+    peaks = [v for v in samples if v >= thresh]
+    vmax = max(samples)
+    if not peaks:
+        return None, 0, vmax
+    return statistics.mean(peaks), len(peaks), vmax
 
 
-def compute_high_metrics(samples_v, high_thresh_v: float, top_n: int):
+def _in_range(x, lo, hi):
+    return x is not None and lo <= x <= hi
+
+
+def _tr_on(slot: int):
+    set_target_slot(slot)
+    termination_on()
+    time.sleep(CMD_QUIET_S)
+
+
+def _tr_off(slot: int):
+    set_target_slot(slot)
+    termination_off()
+    time.sleep(CMD_QUIET_S)
+
+
+def _normalize_keeper_only(log):
+    # TR ON Slot4, OFF Slot1/2/3
+    log("[GATE3] Normalize: TR ON Slot4, TR OFF Slot1/2/3")
+    _tr_on(KEEPER_SLOT)
+    _tr_off(1)
+    _tr_off(2)
+    _tr_off(3)
+
+
+def _measure_stable(spi, h, name: str, log):
+    samples = _sample_window(spi, h, ADC_CH, WINDOW_S, FS_HZ)
+
+    discard_n = int(TRANSIENT_DISCARD_S * FS_HZ)
+    stable = samples[discard_n:] if len(samples) > discard_n else samples
+
+    pm, n, vmax = _peak_mean(stable, PEAK_THRESH_V)
+    log(
+        f"[GATE3] {name}: peak_mean={pm}, peaks={n}, vmax={vmax:.3f}V "
+        f"(stable={WINDOW_S-TRANSIENT_DISCARD_S:.2f}s, discard={TRANSIENT_DISCARD_S:.2f}s)"
+    )
+    return pm, n, vmax
+
+
+def _set_tr_and_measure(spi, h, slot: int, tr_on: bool, label: str, log):
     """
-    Returns dict: vmax, top_mean, count_above, pct_above
-    top_mean = mean(top N samples among those >= high_thresh_v)
+    Timing-stable measurement:
+      set TR -> settle -> sample -> discard transient -> metric
     """
-    if not samples_v:
-        return {"vmax": float("nan"), "top_mean": None, "count_above": 0, "pct_above": 0.0}
+    if tr_on:
+        _tr_on(slot)
+    else:
+        _tr_off(slot)
 
-    vmax = max(samples_v)
-    above = [v for v in samples_v if v >= high_thresh_v]
+    log(f"[GATE3] Waiting settle {SETTLE_S:.2f}s before sampling...")
+    time.sleep(SETTLE_S)
 
-    if not above:
-        return {"vmax": vmax, "top_mean": None, "count_above": 0, "pct_above": 0.0}
-
-    above.sort(reverse=True)
-    top = above[:min(top_n, len(above))]
-    top_mean = statistics.mean(top)
-
-    return {
-        "vmax": vmax,
-        "top_mean": top_mean,
-        "count_above": len(above),
-        "pct_above": 100.0 * len(above) / len(samples_v),
-    }
+    return _measure_stable(spi, h, label, log)
 
 
-# ==============================
-# CAN HELPERS
-# ==============================
-def _termination_off_all(log):
-    """Send TERMINATION_OFF to all 4 slots (addressed)."""
-    for s in (1, 2, 3, 4):
-        set_target_slot(s)
-        termination_off()
-        time.sleep(0.05)
+def _test_slot_1to3(slot: int, spi, h, log):
+    """
+    SlotX ON => LOW, SlotX OFF => HIGH (keeper Slot4 stays ON)
+    """
+    # Ensure keeper-only before starting this slot test
+    _normalize_keeper_only(log)
+    log(f"[GATE3] Waiting settle {SETTLE_S:.2f}s (post-normalize)...")
+    time.sleep(SETTLE_S)
+
+    log(f"[GATE3] → Slot{slot}: TR ON (expect LOW)")
+    pm_on, n_on, vmax_on = _set_tr_and_measure(
+        spi, h, slot, True, f"Slot{slot} ON", log
+    )
+
+    log(f"[GATE3] → Slot{slot}: TR OFF (expect HIGH)")
+    pm_off, n_off, vmax_off = _set_tr_and_measure(
+        spi, h, slot, False, f"Slot{slot} OFF", log
+    )
+
+    ok_low = _in_range(pm_on, *LOW_EXPECT)
+    ok_high = _in_range(pm_off, *HIGH_EXPECT)
+
+    if ok_low and ok_high:
+        log(f"[GATE3] Slot{slot} PASS ✅")
+        return True
+
+    log(f"[GATE3][FAIL] Slot{slot}: ok_low={ok_low}, ok_high={ok_high}")
+    # extra debug hints
+    log(f"[GATE3][DBG] Slot{slot} ON:  pm={pm_on} peaks={n_on} vmax={vmax_on:.3f}V")
+    log(f"[GATE3][DBG] Slot{slot} OFF: pm={pm_off} peaks={n_off} vmax={vmax_off:.3f}V")
+    return False
 
 
-# =========================================================
-# PUBLIC API — CALLED BY RUNNER (per slot)
-# =========================================================
-def run_gate3_termination_check(slot: int, log_cb=None) -> bool:
-    def log(msg: str):
-        if log_cb:
-            log_cb(msg)
-        else:
-            print(msg)
+def _test_slot4(spi, h, log):
+    """
+    Slot4 OFF => HIGH, Slot4 ON => LOW, safely:
+    keep Slot2 ON while toggling Slot4
+    """
+    # Start from keeper-only
+    _normalize_keeper_only(log)
+    log(f"[GATE3] Waiting settle {SETTLE_S:.2f}s (post-normalize)...")
+    time.sleep(SETTLE_S)
 
+    log("[GATE3] → Slot4 test: ensure Slot2 TR ON (keeper2)")
+    _tr_on(KEEPER2_SLOT)
+    log(f"[GATE3] Waiting settle {SETTLE_S:.2f}s (keeper2)...")
+    time.sleep(SETTLE_S)
+
+    log("[GATE3] → Slot4: TR OFF (expect HIGH)")
+    pm_high, n_high, vmax_high = _set_tr_and_measure(
+        spi, h, 4, False, "Slot4 OFF", log
+    )
+
+    log("[GATE3] → Slot4: TR ON (expect LOW)")
+    pm_low, n_low, vmax_low = _set_tr_and_measure(
+        spi, h, 4, True, "Slot4 ON", log
+    )
+
+    ok_high = _in_range(pm_high, *HIGH_EXPECT)
+    ok_low = _in_range(pm_low, *LOW_EXPECT)
+
+    if ok_high and ok_low:
+        log("[GATE3] Slot4 PASS ✅")
+        return True
+
+    log(f"[GATE3][FAIL] Slot4: ok_high={ok_high}, ok_low={ok_low}")
+    log(f"[GATE3][DBG] Slot4 OFF: pm={pm_high} peaks={n_high} vmax={vmax_high:.3f}V")
+    log(f"[GATE3][DBG] Slot4 ON:  pm={pm_low} peaks={n_low} vmax={vmax_low:.3f}V")
+    return False
+
+
+def run_gate3_all_ordered(log_cb=None):
+    log = log_cb or log_default
+
+    results = {1: False, 2: False, 3: False, 4: False}
     h = None
     spi = None
 
-    log("=" * 60)
-    log(f"[GATE4] Slot={slot} — Termination test (shared bus, addressed CAN)")
-    log(f"[GATE4] settle={SETTLE_AFTER_CMD_S:.1f}s window={WINDOW_S}s fs={FS_HZ}Hz thresh={HIGH_THRESH_V}V topN={TOP_N}")
-    log(f"[GATE4] PASS needs BASE-ON: dvmax≥{MIN_VMAX_DELTA:.2f}V and dtopMean≥{MIN_TOPMEAN_DELTA:.2f}V")
+    log("============================================================")
+    log("[GATE3] ONE-SHOT ordered run across Slot1..Slot4")
+    log(
+        f"[GATE3] cmd_quiet={CMD_QUIET_S}s settle={SETTLE_S}s "
+        f"window={WINDOW_S}s discard={TRANSIENT_DISCARD_S}s fs={FS_HZ}Hz "
+        f"peak_thresh={PEAK_THRESH_V}V"
+    )
+    log(f"[GATE3] LOW={LOW_EXPECT}, HIGH={HIGH_EXPECT}")
 
     try:
-        # ------------------------------
-        # INIT GPIO (manual CS) + SPI
-        # ------------------------------
         h = lgpio.gpiochip_open(GPIO_CHIP)
-        lgpio.gpio_claim_output(h, CS_GPIO, 1)  # CS high (inactive)
+        lgpio.gpio_claim_output(h, CS_GPIO, 1)
 
         spi = spidev.SpiDev()
         spi.open(SPI_BUS, SPI_DEV)
         spi.max_speed_hz = SPI_SPEED
         spi.mode = 0
-        spi.no_cs = True  # manual CS
+        spi.no_cs = True
 
-        log("[GATE4] SPI + GPIO initialized")
+        log("[GATE3] SPI + GPIO initialized")
 
-        # ==================================================
-        # PHASE A: GLOBAL OFF BASELINE (with retries)
-        # ==================================================
-        m_base = None
-        for attempt in range(0, BASELINE_MAX_RETRIES + 1):
-            log(f"[GATE4] → Forcing TERMINATION_OFF on ALL RUPs (attempt {attempt+1}/{BASELINE_MAX_RETRIES+1})")
-            _termination_off_all(log)
+        # Slots 1..3
+        for s in (1, 2, 3):
+            results[s] = _test_slot_1to3(s, spi, h, log)
 
-            log(f"[GATE4] Waiting {SETTLE_AFTER_CMD_S:.1f}s before measuring BASELINE OFF...")
-            time.sleep(SETTLE_AFTER_CMD_S)
+        # Slot 4 special
+        results[4] = _test_slot4(spi, h, log)
 
-            log("[GATE4] Measuring BASELINE OFF window...")
-            samples_base = sample_can_h_window(spi, h, ADC_CH, WINDOW_S, FS_HZ)
-            m_base = compute_high_metrics(samples_base, HIGH_THRESH_V, TOP_N)
-
-            log(
-                f"[GATE4] BASE: vmax={m_base['vmax']:.3f}V, top{TOP_N}_mean={m_base['top_mean']}, "
-                f"above={m_base['count_above']} ({m_base['pct_above']:.1f}%)"
-            )
-
-            # Baseline must have enough "high" samples to compute top_mean (or your metric can't work)
-            if m_base["top_mean"] is not None:
-                break
-
-            if attempt == BASELINE_MAX_RETRIES:
-                log("[GATE4][FAIL] Baseline OFF invalid: not enough 'high' samples to compute top-mean.")
-                log("[GATE4][HINT] Lower HIGH_THRESH_V (2.7–2.9) or ensure bus traffic exists.")
-                return False
-
-        # ==================================================
-        # PHASE B: TEST THIS SLOT (ON then OFF)
-        # ==================================================
-        # --- ON (addressed)
-        log(f"[GATE4] → Slot {slot}: Sending TERMINATION_ON (addressed)")
-        set_target_slot(slot)
-        termination_on()
-
-        log(f"[GATE4] Waiting {SETTLE_AFTER_CMD_S:.1f}s before measuring ON...")
-        time.sleep(SETTLE_AFTER_CMD_S)
-
-        log("[GATE4] Measuring ON window...")
-        samples_on = sample_can_h_window(spi, h, ADC_CH, WINDOW_S, FS_HZ)
-        m_on = compute_high_metrics(samples_on, HIGH_THRESH_V, TOP_N)
-
-        log(
-            f"[GATE4] ON : vmax={m_on['vmax']:.3f}V, top{TOP_N}_mean={m_on['top_mean']}, "
-            f"above={m_on['count_above']} ({m_on['pct_above']:.1f}%)"
-        )
-
-        if m_on["top_mean"] is None:
-            log("[GATE4][FAIL] ON invalid: not enough 'high' samples to compute top-mean.")
-            return False
-
-        # Compare BASELINE_OFF -> ON deltas (BASE should be higher than ON)
-        dvmax = m_base["vmax"] - m_on["vmax"]
-        dtop = m_base["top_mean"] - m_on["top_mean"]
-
-        log(f"[GATE4] Δ (BASE - ON): dvmax={dvmax:.3f}V, dtopMean={dtop:.3f}V")
-
-        if dvmax < MIN_VMAX_DELTA:
-            log("[GATE4][FAIL] BASE-ON vmax delta too small")
-            return False
-
-        if dtop < MIN_TOPMEAN_DELTA:
-            log("[GATE4][FAIL] BASE-ON top-mean delta too small")
-            return False
-
-        # --- OFF again (addressed) and verify return-to-baseline
-        log(f"[GATE4] → Slot {slot}: Sending TERMINATION_OFF (addressed)")
-        set_target_slot(slot)
-        termination_off()
-
-        log(f"[GATE4] Waiting {SETTLE_AFTER_CMD_S:.1f}s before measuring OFF-return...")
-        time.sleep(SETTLE_AFTER_CMD_S)
-
-        log("[GATE4] Measuring OFF-return window...")
-        samples_off2 = sample_can_h_window(spi, h, ADC_CH, WINDOW_S, FS_HZ)
-        m_off2 = compute_high_metrics(samples_off2, HIGH_THRESH_V, TOP_N)
-
-        log(
-            f"[GATE4] OFF2: vmax={m_off2['vmax']:.3f}V, top{TOP_N}_mean={m_off2['top_mean']}, "
-            f"above={m_off2['count_above']} ({m_off2['pct_above']:.1f}%)"
-        )
-
-        # Return-to-baseline sanity: OFF2 should be closer to BASE than to ON in top_mean
-        if m_off2["top_mean"] is None:
-            log("[GATE4][WARN] OFF-return top_mean missing; skipping strict return-to-baseline check.")
-        else:
-            dist_base = abs(m_off2["top_mean"] - m_base["top_mean"])
-            dist_on = abs(m_off2["top_mean"] - m_on["top_mean"])
-            log(f"[GATE4] Return check: |OFF2-BASE|={dist_base:.3f}, |OFF2-ON|={dist_on:.3f}")
-            if dist_base > dist_on:
-                log("[GATE4][FAIL] OFF-return does not look like baseline (may still be terminating).")
-                return False
-
-        log("[GATE4] PASS — addressed termination toggled + returned to baseline")
-        return True
-
-    except Exception as e:
-        log(f"[GATE4][ERROR] Unexpected failure: {e}")
-        return False
+        return results
 
     finally:
+        # End state you want: Slot2 ON + Slot4 ON, Slot1/3 OFF
         try:
-            if h is not None:
-                lgpio.gpio_write(h, CS_GPIO, 1)
+            log("[GATE3] Finish: keep TR ON Slot2 + Slot4 (2 terminations), others OFF")
+            _tr_off(1)
+            _tr_off(3)
+            _tr_on(2)
+            _tr_on(4)
         except Exception:
             pass
 
         try:
-            if spi is not None:
+            if spi:
                 spi.close()
         except Exception:
             pass
-
         try:
             if h is not None:
                 lgpio.gpiochip_close(h)
         except Exception:
             pass
 
-        log("[GATE4] SPI + GPIO released")
+        log("[GATE3] SPI + GPIO released")
 
 
-# if __name__ == "__main__":
-#     # Manual single-slot debug run (runner will call slot 1..4 during ATP)
-#     ok = run_gate4_termination_check(slot=1)
-#     print("\nRESULT:", "PASS ✅" if ok else "FAIL ❌")
+# Compatibility per-slot API (still runs the global ordered test)
+def run_gate3_termination_check(slot: int, log_cb=None) -> bool:
+    res = run_gate3_all_ordered(log_cb=log_cb)
+    return bool(res.get(slot, False))
+
+
+if __name__ == "__main__":
+    r = run_gate3_all_ordered()
+    print("\nRESULTS:", r)

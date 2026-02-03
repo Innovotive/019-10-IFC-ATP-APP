@@ -2,7 +2,7 @@ import can
 import time
 
 CHANNEL = "can0"
-CAN_ID = 0x001 #02,01
+CAN_ID = 0x001
 
 ATP_COMMANDS = 0x07
 
@@ -24,6 +24,7 @@ IUL_ON  = 0xE1
 IUL_OFF = 0xE0
 
 bus = can.interface.Bus(channel=CHANNEL, bustype="socketcan")
+
 
 def send_atp_command(cmd: int, desc: str = ""):
     # NEW protocol: [ATP_COMMANDS, cmd]
@@ -76,8 +77,8 @@ if __name__ == "__main__":
     
     #send_atp_command(TERMINATION_ON , "TERMINATION_ON 83 ")
     #send_atp_command(TERMINATION_OFF , "TERMINATION_OFF ")
-    send_atp_command(READ_ID_PINS_REQUEST, "READ_ID_PINS_REQUEST")
-    #send_atp_command(POWER_TO_60W,"POWER_TO_60W")
+    # send_atp_command(READ_ID_PINS_REQUEST, "READ_ID_PINS_REQUEST")
+    send_atp_command(POWER_TO_60W,"POWER_TO_60W")
     #send_atp_command(POWER_TO_45W,"POWER_TO_45W")
     #send_atp_command(POWER_TO_30W,"POWER_TO_30W") #12v doesnt appear on the menu
     #send_atp_command(POWER_TO_22_5W,"POWER_TO_22_5W")
